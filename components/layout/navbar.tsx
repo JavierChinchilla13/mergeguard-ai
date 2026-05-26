@@ -1,0 +1,45 @@
+"use client"
+
+import React from "react"
+import Link from "next/link"
+import { Shield, Globe } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+export function Navbar() {
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Shield className="h-5 w-5" />
+            </div>
+            <span className="text-xl font-bold tracking-tight">MergeGuard</span>
+          </Link>
+        </div>
+        <nav className="hidden md:flex items-center gap-6">
+          <Link href="#how-it-works" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            How it Works
+          </Link>
+          <Link href="#docs" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            Documentation
+          </Link>
+          <Link href="#community" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            Community
+          </Link>
+        </nav>
+        <div className="flex items-center gap-4">
+          <Link href="https://github.com" target="_blank" rel="noreferrer">
+            <Button variant="ghost" size="icon">
+              <Globe className="h-5 w-5" />
+              <span className="sr-only">GitHub</span>
+            </Button>
+          </Link>
+          <Button variant="outline" size="sm" className="hidden sm:flex">
+            Run Analysis
+          </Button>
+        </div>
+      </div>
+    </header>
+  )
+}
