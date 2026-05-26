@@ -13,35 +13,36 @@ import {
   AlertTriangle,
   ExternalLink,
   FileCode,
-  Activity
+  Activity,
+  CheckCircle2
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CodeBlock } from "@/components/ui/code-block"
-import { ReviewIssue, Severity } from "@/lib/mock-data"
+import { ReviewResponse, ReviewFinding } from "@/lib/gemini"
 import { cn } from "@/lib/utils"
 
 interface ResultsSectionProps {
-  issues: ReviewIssue[]
+  review: ReviewResponse
   files?: any[]
   prDetails?: { owner: string; repo: string; pullNumber: number }
 }
 
 const CATEGORY_MAP = {
-  bug: { icon: Bug, label: "Bugs", color: "text-red-500", bg: "bg-red-500/10" },
+  bugs: { icon: Bug, label: "Bugs", color: "text-red-500", bg: "bg-red-500/10" },
   security: { icon: ShieldAlert, label: "Security", color: "text-orange-500", bg: "bg-orange-500/10" },
   performance: { icon: Zap, label: "Performance", color: "text-yellow-500", bg: "bg-yellow-500/10" },
-  smell: { icon: Wind, label: "Code Smells", color: "text-blue-500", bg: "bg-blue-500/10" },
-  suggestion: { icon: Lightbulb, label: "Suggestions", color: "text-green-500", bg: "bg-green-500/10" },
+  codeSmells: { icon: Wind, label: "Code Smells", color: "text-blue-500", bg: "bg-blue-500/10" },
+  suggestions: { icon: Lightbulb, label: "Suggestions", color: "text-green-500", bg: "bg-green-500/10" },
 }
 
-export function ResultsSection({ issues, files, prDetails }: ResultsSectionProps) {
-  const [expandedIssue, setExpandedIssue] = useState<string | null>(issues[0]?.id || null)
+export function ResultsSection({ review, files, prDetails }: ResultsSectionProps) {
+  const [expandedIssue, setExpandedIssue] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"issues" | "files">("issues")
 
   const categories = Object.entries(CATEGORY_MAP).map(([key, config]) => {
-    const categoryIssues = issues.filter(i => i.category === key)
+    const categoryIssues = (review as any)[key] || []
     return {
       key,
       ...config,
@@ -49,6 +50,8 @@ export function ResultsSection({ issues, files, prDetails }: ResultsSectionProps
       issues: categoryIssues
     }
   }).filter(c => c.count > 0)
+
+  const totalIssues = categories.reduce((acc, cat) => acc + cat.count, 0)
 
   return (
     <section className="container py-12">
@@ -59,7 +62,7 @@ export function ResultsSection({ issues, files, prDetails }: ResultsSectionProps
             <span>{prDetails?.owner}/{prDetails?.repo} • PR #{prDetails?.pullNumber}</span>
           </div>
           <h2 className="text-3xl font-bold tracking-tight">Analysis Report</h2>
-          <p className="text-muted-foreground">Comprehensive AI audit and file inspection results.</p>
+          <p className="text-muted-foreground">{review?.summary || "Comprehensive AI audit results."}</p>
         </div>
         
         <div className="flex bg-muted/50 p-1 rounded-lg border border-border/50">
@@ -71,7 +74,7 @@ export function ResultsSection({ issues, files, prDetails }: ResultsSectionProps
             )}
           >
             <AlertTriangle className="h-4 w-4" />
-            AI Review ({issues.length})
+            AI Review ({totalIssues})
           </button>
           <button 
             onClick={() => setActiveTab("files")}
@@ -96,26 +99,41 @@ export function ResultsSection({ issues, files, prDetails }: ResultsSectionProps
             transition={{ duration: 0.3 }}
             className="space-y-8"
           >
-            {categories.map(category => (
-              <div key={category.key} className="space-y-4">
-                <div className="flex items-center gap-2 px-2">
-                  <category.icon className={cn("h-5 w-5", category.color)} />
-                  <h3 className="text-xl font-semibold">{category.label}</h3>
-                  <span className="text-sm text-muted-foreground ml-2">({category.count})</span>
+            {totalIssues === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="mb-4 rounded-full bg-green-500/10 p-4">
+                  <CheckCircle2 className="h-10 w-10 text-green-500" />
                 </div>
-                
-                <div className="grid gap-4">
-                  {category.issues.map(issue => (
-                    <IssueCard 
-                      key={issue.id} 
-                      issue={issue} 
-                      isExpanded={expandedIssue === issue.id}
-                      onToggle={() => setExpandedIssue(expandedIssue === issue.id ? null : issue.id)}
-                    />
-                  ))}
-                </div>
+                <h3 className="text-xl font-bold">No Issues Found</h3>
+                <p className="text-muted-foreground max-w-md">
+                  Gemini analyzed your code and found no critical bugs, security vulnerabilities, or performance bottlenecks. Great work!
+                </p>
               </div>
-            ))}
+            ) : (
+              categories.map(category => (
+                <div key={category.key} className="space-y-4">
+                  <div className="flex items-center gap-2 px-2">
+                    <category.icon className={cn("h-5 w-5", category.color)} />
+                    <h3 className="text-xl font-semibold">{category.label}</h3>
+                    <span className="text-sm text-muted-foreground ml-2">({category.count})</span>
+                  </div>
+                  
+                  <div className="grid gap-4">
+                    {category.issues.map((issue: ReviewFinding, idx: number) => {
+                      const issueId = `${category.key}-${idx}`;
+                      return (
+                        <IssueCard 
+                          key={issueId} 
+                          issue={issue} 
+                          isExpanded={expandedIssue === issueId}
+                          onToggle={() => setExpandedIssue(expandedIssue === issueId ? null : issueId)}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
           </motion.div>
         ) : (
           <motion.div
@@ -180,8 +198,9 @@ function FileCard({ file }: { file: any }) {
   )
 }
 
-function IssueCard({ issue, isExpanded, onToggle }: { issue: ReviewIssue, isExpanded: boolean, onToggle: () => void }) {
-  const Icon = CATEGORY_MAP[issue.category].icon
+function IssueCard({ issue, isExpanded, onToggle }: { issue: ReviewFinding, isExpanded: boolean, onToggle: () => void }) {
+  // Determine icon and color based on category/severity if needed
+  // For now using category icons from parent
 
   return (
     <Card className={cn(
@@ -194,9 +213,6 @@ function IssueCard({ issue, isExpanded, onToggle }: { issue: ReviewIssue, isExpa
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className={cn("mt-1 rounded-full p-2", CATEGORY_MAP[issue.category].bg)}>
-              <Icon className={cn("h-5 w-5", CATEGORY_MAP[issue.category].color)} />
-            </div>
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <CardTitle className="text-lg">{issue.title}</CardTitle>
@@ -234,10 +250,6 @@ function IssueCard({ issue, isExpanded, onToggle }: { issue: ReviewIssue, isExpa
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Code Snippet</h4>
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                    <ExternalLink className="mr-1.5 h-3 w-3" />
-                    View in GitHub
-                  </Button>
                 </div>
                 <CodeBlock 
                   code={issue.codeSnippet} 

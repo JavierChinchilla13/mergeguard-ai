@@ -36,10 +36,6 @@ export default function LandingPage() {
       }
 
       setPrData(data)
-      
-      // Artificial delay to show the nice loading states we built
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
       setIsAnalyzing(false)
       setShowResults(true)
       
@@ -83,7 +79,7 @@ export default function LandingPage() {
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
               <ResultsSection 
-                issues={MOCK_REVIEW_RESULTS} 
+                review={prData?.review} 
                 files={prData?.files}
                 prDetails={prData?.details}
               />
