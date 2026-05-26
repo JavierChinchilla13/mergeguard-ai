@@ -12,20 +12,46 @@ import { motion, AnimatePresence } from "framer-motion"
 export default function LandingPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [showResults, setShowResults] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [prData, setPrData] = useState<any>(null)
 
-  const handleAnalyze = (url: string) => {
+  const handleAnalyze = async (url: string) => {
     setIsAnalyzing(true)
     setShowResults(false)
+    setError(null)
 
-    // Simulate analysis time
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/analyze-pr", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ url }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to analyze Pull Request")
+      }
+
+      setPrData(data)
+      
+      // Artificial delay to show the nice loading states we built
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
       setIsAnalyzing(false)
       setShowResults(true)
+      
       // Scroll to results
       setTimeout(() => {
         document.getElementById("results")?.scrollIntoView({ behavior: "smooth" })
       }, 100)
-    }, 3000)
+    } catch (err: any) {
+      setIsAnalyzing(false)
+      setError(err.message)
+      console.error("Analysis Error:", err)
+    }
   }
 
   return (
@@ -39,6 +65,15 @@ export default function LandingPage() {
           <PRInput onAnalyze={handleAnalyze} isLoading={isAnalyzing} />
         </div>
 
+        {error && (
+          <div className="container max-w-3xl pb-12">
+            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
+              <p className="font-semibold">Analysis Failed</p>
+              <p className="text-sm opacity-90">{error}</p>
+            </div>
+          </div>
+        )}
+
         <AnimatePresence>
           {showResults && (
             <motion.div
@@ -47,7 +82,11 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
-              <ResultsSection issues={MOCK_REVIEW_RESULTS} />
+              <ResultsSection 
+                issues={MOCK_REVIEW_RESULTS} 
+                files={prData?.files}
+                prDetails={prData?.details}
+              />
             </motion.div>
           )}
         </AnimatePresence>

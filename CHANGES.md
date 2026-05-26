@@ -38,6 +38,7 @@ merge-guard/
 - **Gradients:** Subtle mesh gradients in the background to add depth.
 
 ### 2. Interactive Analysis Flow
+- **Real-time GitHub Integration:** Added a backend engine that fetches real PR data (files, diffs, metadata) via the GitHub REST API.
 - **PR Input:** A high-fidelity search bar with URL validation for GitHub Pull Requests.
 - **Loading Progress:** A multi-step animated progress bar that simulates:
   1. Fetching pull request data.
@@ -46,6 +47,8 @@ merge-guard/
 - **Smooth Transitions:** Used `AnimatePresence` for seamless transitions between the Hero/Input state and the Results view.
 
 ### 3. Review Results UI
+- **Live File Inspection:** A new "Files" tab displays real-time data from the PR, including additions, deletions, and file statuses.
+- **Git Patch Viewer:** Integrated a collapsible patch viewer to see raw diffs directly in the tool.
 - **Categorization:** Issues are grouped into Bugs, Security, Performance, Code Smells, and Suggestions.
 - **Severity Badges:** Color-coded badges (Critical, High, Medium, Low) for quick triage.
 - **Expandable Cards:** Issues are collapsible to keep the UI clean while allowing deep-dives.
@@ -53,6 +56,8 @@ merge-guard/
 - **AI Recommendations:** Targeted advice for every issue detected.
 
 ### 4. Technical Quality
+- **API Architecture:** Next.js 15 Route Handlers (`/api/analyze-pr`) with secure GitHub Token authentication.
+- **Type Safety:** Comprehensive TypeScript interfaces for GitHub API responses and internal data structures.
 - **Responsive Design:** Mobile-first approach with custom container widths for larger screens.
 - **Build Verified:** Successfully passed `npm run build` with full TypeScript type checking.
 - **Performance:** Optimized for CLS (Cumulative Layout Shift) using Framer Motion's layout animations.
@@ -64,12 +69,18 @@ merge-guard/
     npm install
     ```
 
-2.  **Run development server:**
+2.  **Environment Setup:**
+    Create a `.env.local` file with your GitHub Personal Access Token:
+    ```bash
+    GITHUB_TOKEN=your_token_here
+    ```
+
+3.  **Run development server:**
     ```bash
     npm run dev
     ```
 
-3.  **Build for production:**
+4.  **Build for production:**
     ```bash
     npm run build
     ```

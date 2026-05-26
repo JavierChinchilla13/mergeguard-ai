@@ -11,7 +11,9 @@ import {
   ChevronDown, 
   ChevronRight,
   AlertTriangle,
-  ExternalLink
+  ExternalLink,
+  FileCode,
+  Activity
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,6 +24,8 @@ import { cn } from "@/lib/utils"
 
 interface ResultsSectionProps {
   issues: ReviewIssue[]
+  files?: any[]
+  prDetails?: { owner: string; repo: string; pullNumber: number }
 }
 
 const CATEGORY_MAP = {
@@ -32,8 +36,9 @@ const CATEGORY_MAP = {
   suggestion: { icon: Lightbulb, label: "Suggestions", color: "text-green-500", bg: "bg-green-500/10" },
 }
 
-export function ResultsSection({ issues }: ResultsSectionProps) {
+export function ResultsSection({ issues, files, prDetails }: ResultsSectionProps) {
   const [expandedIssue, setExpandedIssue] = useState<string | null>(issues[0]?.id || null)
+  const [activeTab, setActiveTab] = useState<"issues" | "files">("issues")
 
   const categories = Object.entries(CATEGORY_MAP).map(([key, config]) => {
     const categoryIssues = issues.filter(i => i.category === key)
@@ -47,44 +52,131 @@ export function ResultsSection({ issues }: ResultsSectionProps) {
 
   return (
     <section className="container py-12">
-      <div className="mb-12 flex flex-col items-center justify-between gap-4 md:flex-row">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Review Results</h2>
-          <p className="text-muted-foreground">Found {issues.length} potential improvements in your code.</p>
+      <div className="mb-12 flex flex-col items-center justify-between gap-6 md:flex-row">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-sm text-primary font-mono mb-2">
+            <Activity className="h-4 w-4" />
+            <span>{prDetails?.owner}/{prDetails?.repo} • PR #{prDetails?.pullNumber}</span>
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight">Analysis Report</h2>
+          <p className="text-muted-foreground">Comprehensive AI audit and file inspection results.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {categories.map(cat => (
-            <Badge key={cat.key} variant="outline" className="h-8 px-3">
-              <cat.icon className={cn("mr-2 h-4 w-4", cat.color)} />
-              {cat.count} {cat.label}
-            </Badge>
-          ))}
+        
+        <div className="flex bg-muted/50 p-1 rounded-lg border border-border/50">
+          <button 
+            onClick={() => setActiveTab("issues")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+              activeTab === "issues" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <AlertTriangle className="h-4 w-4" />
+            AI Review ({issues.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab("files")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-1.5 text-sm font-medium rounded-md transition-all",
+              activeTab === "files" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <FileCode className="h-4 w-4" />
+            Files ({files?.length || 0})
+          </button>
         </div>
       </div>
 
-      <div className="space-y-8">
-        {categories.map(category => (
-          <div key={category.key} className="space-y-4">
-            <div className="flex items-center gap-2 px-2">
-              <category.icon className={cn("h-5 w-5", category.color)} />
-              <h3 className="text-xl font-semibold">{category.label}</h3>
-              <span className="text-sm text-muted-foreground ml-2">({category.count})</span>
-            </div>
-            
+      <AnimatePresence mode="wait">
+        {activeTab === "issues" ? (
+          <motion.div
+            key="issues-tab"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-8"
+          >
+            {categories.map(category => (
+              <div key={category.key} className="space-y-4">
+                <div className="flex items-center gap-2 px-2">
+                  <category.icon className={cn("h-5 w-5", category.color)} />
+                  <h3 className="text-xl font-semibold">{category.label}</h3>
+                  <span className="text-sm text-muted-foreground ml-2">({category.count})</span>
+                </div>
+                
+                <div className="grid gap-4">
+                  {category.issues.map(issue => (
+                    <IssueCard 
+                      key={issue.id} 
+                      issue={issue} 
+                      isExpanded={expandedIssue === issue.id}
+                      onToggle={() => setExpandedIssue(expandedIssue === issue.id ? null : issue.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="files-tab"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+          >
             <div className="grid gap-4">
-              {category.issues.map(issue => (
-                <IssueCard 
-                  key={issue.id} 
-                  issue={issue} 
-                  isExpanded={expandedIssue === issue.id}
-                  onToggle={() => setExpandedIssue(expandedIssue === issue.id ? null : issue.id)}
-                />
+              {files?.map((file, idx) => (
+                <FileCard key={idx} file={file} />
               ))}
             </div>
-          </div>
-        ))}
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
+  )
+}
+
+function FileCard({ file }: { file: any }) {
+  const [showPatch, setShowPatch] = useState(false)
+
+  return (
+    <Card className="border-border/40 overflow-hidden">
+      <CardHeader className="p-4 md:p-6 cursor-pointer" onClick={() => setShowPatch(!showPatch)}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+              <FileCode className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-mono">{file.filename}</CardTitle>
+              <div className="flex items-center gap-3 mt-1 text-xs font-medium">
+                <span className="text-green-500">+{file.additions}</span>
+                <span className="text-red-500">-{file.deletions}</span>
+                <Badge variant="outline" className="h-5 px-1.5 text-[10px] uppercase">
+                  {file.status}
+                </Badge>
+              </div>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground">
+            {showPatch ? "Hide Patch" : "Show Patch"}
+          </Button>
+        </div>
+      </CardHeader>
+      <AnimatePresence>
+        {showPatch && file.patch && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="border-t border-border/20"
+          >
+            <CodeBlock code={file.patch} className="rounded-none border-0" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Card>
   )
 }
 
