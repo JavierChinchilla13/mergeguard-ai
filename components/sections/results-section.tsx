@@ -46,6 +46,7 @@ const CATEGORY_MAP = {
   security: { icon: ShieldAlert, label: "Security", color: "text-orange-500", bg: "bg-orange-500/10" },
   performance: { icon: Zap, label: "Performance", color: "text-yellow-500", bg: "bg-yellow-500/10" },
   codeSmells: { icon: Wind, label: "Code Smells", color: "text-blue-500", bg: "bg-blue-500/10" },
+  architectureConcerns: { icon: Layers, label: "Architecture", color: "text-purple-500", bg: "bg-purple-500/10" },
   suggestions: { icon: Lightbulb, label: "Suggestions", color: "text-green-500", bg: "bg-green-500/10" },
 }
 
@@ -100,6 +101,15 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
               <Activity className="h-3.5 w-3.5" />
               <span>{prDetails?.owner}/{prDetails?.repo} • #{prDetails?.pullNumber}</span>
             </div>
+            <Badge variant="outline" className={cn(
+              "h-6 px-2 capitalize",
+              review?.overallRating === 'excellent' ? "text-green-500 border-green-500/20 bg-green-500/5" :
+              review?.overallRating === 'good' ? "text-blue-500 border-blue-500/20 bg-blue-500/5" :
+              review?.overallRating === 'needs_work' ? "text-yellow-500 border-yellow-500/20 bg-yellow-500/5" :
+              "text-red-500 border-red-500/20 bg-red-500/5"
+            )}>
+              Rating: {review?.overallRating?.replace('_', ' ') || 'Pending'}
+            </Badge>
             {metadata?.cacheStatus === 'hit' && (
               <Badge variant="secondary" className="h-6 gap-1.5 bg-blue-500/10 text-blue-500 border-blue-500/20">
                 <Database className="h-3 w-3" />
@@ -128,6 +138,21 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
             )}
           </div>
           <p className="text-muted-foreground mt-2 max-w-2xl">{review?.summary || "Comprehensive AI audit results."}</p>
+          
+          {review?.positiveFeedback?.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {review.positiveFeedback.map((text, i) => (
+                <span key={i} className="text-[11px] font-medium bg-green-500/10 text-green-400 px-2 py-1 rounded-md border border-green-500/20 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {text}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {postError && (
+            <p className="text-xs text-destructive font-medium mt-2">Error: {postError}</p>
+          )}
         </div>
         
         <div className="flex bg-muted/50 p-1 rounded-lg border border-border/50 self-start md:self-center">
@@ -246,11 +271,16 @@ function IssueCard({ issue, isExpanded, onToggle }: { issue: ReviewFinding, isEx
     <Card className={cn("overflow-hidden transition-all duration-200 border-border/40 hover:border-primary/30", isExpanded && "border-primary/50 shadow-lg shadow-primary/5")}>
       <CardHeader className="cursor-pointer select-none p-4 md:p-6" onClick={onToggle}>
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div>
+          <div className="flex items-start gap-4 w-full">
+            <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <CardTitle className="text-lg">{issue.title}</CardTitle>
-                <Badge variant={issue.severity as any} className="capitalize">{issue.severity}</Badge>
+                <Badge variant={issue.severity as any} className="capitalize text-[10px] h-5">
+                  {issue.severity}
+                </Badge>
+                <Badge variant="outline" className="capitalize text-[10px] h-5 border-white/10 text-muted-foreground">
+                  Confidence: {issue.confidence}
+                </Badge>
               </div>
               <p className="text-sm text-muted-foreground line-clamp-1">{issue.file}:{issue.line}</p>
             </div>
@@ -263,17 +293,32 @@ function IssueCard({ issue, isExpanded, onToggle }: { issue: ReviewFinding, isEx
       <AnimatePresence>{isExpanded && (
         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }}>
           <CardContent className="space-y-6 border-t border-border/20 p-4 pt-6 md:p-6">
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Description</h4>
-              <p className="text-foreground leading-relaxed">{issue.description}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">The Finding</h4>
+                <p className="text-foreground leading-relaxed text-sm">{issue.description}</p>
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-red-400/80">Production Impact</h4>
+                <p className="text-foreground/90 leading-relaxed text-sm">{issue.impact}</p>
+              </div>
             </div>
+
             <div className="space-y-3">
-              <div className="flex items-center justify-between"><h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Code Snippet</h4></div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Technical Reasoning</h4>
+              <p className="text-sm text-muted-foreground italic leading-relaxed border-l-2 border-primary/20 pl-4">
+                {issue.technicalReasoning}
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Code Evidence</h4>
               <CodeBlock code={issue.codeSnippet} filename={issue.file} line={issue.line} />
             </div>
+
             <div className="rounded-lg bg-primary/5 border border-primary/10 p-4">
-              <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-4 w-4 text-primary" /><h4 className="text-sm font-semibold text-primary">Recommendation</h4></div>
-              <p className="text-sm text-foreground/90 leading-relaxed">{issue.recommendation}</p>
+              <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-4 w-4 text-primary" /><h4 className="text-xs font-bold uppercase tracking-wide text-primary">Senior Fix Recommendation</h4></div>
+              <p className="text-sm text-foreground/90 leading-relaxed font-mono">{issue.recommendation}</p>
             </div>
           </CardContent>
         </motion.div>

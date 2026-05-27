@@ -10,20 +10,26 @@ import {
 export interface ReviewFinding {
   title: string;
   severity: "critical" | "high" | "medium" | "low";
+  confidence: "high" | "medium" | "low";
   description: string;
+  impact: string; // Explains WHY this matters
   file: string;
   line: number;
   recommendation: string;
   codeSnippet: string;
+  technicalReasoning: string; // The "senior engineer" deep dive
 }
 
 export interface ReviewResponse {
   summary: string;
+  overallRating: "excellent" | "good" | "needs_work" | "critical_issues";
   bugs: ReviewFinding[];
   security: ReviewFinding[];
   performance: ReviewFinding[];
   codeSmells: ReviewFinding[];
+  architectureConcerns: ReviewFinding[];
   suggestions: ReviewFinding[];
+  positiveFeedback: string[]; // Acknowledging good patterns
 }
 
 // Structured Output Schema
@@ -32,7 +38,11 @@ const reviewSchema: ResponseSchema = {
   properties: {
     summary: {
       type: SchemaType.STRING,
-      description: "A brief high-level summary of the overall PR quality and major findings."
+      description: "A high-level technical summary of the PR quality and architectural impact."
+    },
+    overallRating: {
+      type: SchemaType.STRING,
+      description: "PR quality rating: excellent, good, needs_work, or critical_issues"
     },
     bugs: {
       type: SchemaType.ARRAY,
@@ -41,13 +51,16 @@ const reviewSchema: ResponseSchema = {
         properties: {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
+          confidence: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
+          impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
           line: { type: SchemaType.NUMBER },
           recommendation: { type: SchemaType.STRING },
-          codeSnippet: { type: SchemaType.STRING }
+          codeSnippet: { type: SchemaType.STRING },
+          technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "description", "file", "line", "recommendation", "codeSnippet"]
+        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
     security: {
@@ -57,13 +70,16 @@ const reviewSchema: ResponseSchema = {
         properties: {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
+          confidence: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
+          impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
           line: { type: SchemaType.NUMBER },
           recommendation: { type: SchemaType.STRING },
-          codeSnippet: { type: SchemaType.STRING }
+          codeSnippet: { type: SchemaType.STRING },
+          technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "description", "file", "line", "recommendation", "codeSnippet"]
+        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
     performance: {
@@ -73,13 +89,16 @@ const reviewSchema: ResponseSchema = {
         properties: {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
+          confidence: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
+          impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
           line: { type: SchemaType.NUMBER },
           recommendation: { type: SchemaType.STRING },
-          codeSnippet: { type: SchemaType.STRING }
+          codeSnippet: { type: SchemaType.STRING },
+          technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "description", "file", "line", "recommendation", "codeSnippet"]
+        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
     codeSmells: {
@@ -89,13 +108,35 @@ const reviewSchema: ResponseSchema = {
         properties: {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
+          confidence: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
+          impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
           line: { type: SchemaType.NUMBER },
           recommendation: { type: SchemaType.STRING },
-          codeSnippet: { type: SchemaType.STRING }
+          codeSnippet: { type: SchemaType.STRING },
+          technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "description", "file", "line", "recommendation", "codeSnippet"]
+        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
+      }
+    },
+    architectureConcerns: {
+      type: SchemaType.ARRAY,
+      items: {
+        type: SchemaType.OBJECT,
+        properties: {
+          title: { type: SchemaType.STRING },
+          severity: { type: SchemaType.STRING },
+          confidence: { type: SchemaType.STRING },
+          description: { type: SchemaType.STRING },
+          impact: { type: SchemaType.STRING },
+          file: { type: SchemaType.STRING },
+          line: { type: SchemaType.NUMBER },
+          recommendation: { type: SchemaType.STRING },
+          codeSnippet: { type: SchemaType.STRING },
+          technicalReasoning: { type: SchemaType.STRING }
+        },
+        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
     suggestions: {
@@ -105,31 +146,44 @@ const reviewSchema: ResponseSchema = {
         properties: {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
+          confidence: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
+          impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
           line: { type: SchemaType.NUMBER },
           recommendation: { type: SchemaType.STRING },
-          codeSnippet: { type: SchemaType.STRING }
+          codeSnippet: { type: SchemaType.STRING },
+          technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "description", "file", "line", "recommendation", "codeSnippet"]
+        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
+    },
+    positiveFeedback: {
+      type: SchemaType.ARRAY,
+      items: { type: SchemaType.STRING },
+      description: "Acknowledge good engineering practices or well-designed components found in the PR."
     }
   },
-  required: ["summary", "bugs", "security", "performance", "codeSmells", "suggestions"]
+  required: ["summary", "overallRating", "bugs", "security", "performance", "codeSmells", "architectureConcerns", "suggestions", "positiveFeedback"]
 };
 
-const SYSTEM_PROMPT = `You are MergeGuard AI, a senior security researcher and engineer. Review the following GitHub PR diff.
-Report meaningful findings for:
-1. BUGS: Logic errors, race conditions, async safety.
-2. SECURITY: OWASP Top 10, secrets exposure, unsafe validation.
-3. PERFORMANCE: Inefficiency, memory leaks, slow queries.
-4. CODE QUALITY: Solid/DRY violations, dead code, poor architecture.
+const SYSTEM_PROMPT = `You are MergeGuard AI, a Lead Software Engineer and Security Architect. Conduct a deep-dive production code review.
+
+Technical Priorities:
+- SECURITY: OWASP Top 10, XSS, SQLi, CSRF, insecure auth, secrets exposure, unsafe database mutations.
+- LOGIC & CONCURRENCY: Race conditions, deadlocks, async/await gaps, edge cases, state corruption.
+- PERFORMANCE: N+1 queries, memory leaks, unmemoized React components, expensive O(n) ops, blocking IO.
+- ARCHITECTURE: SOLID/DRY violations, server/client boundary mistakes (Next.js), leakage of internals, tight coupling.
 
 Rules:
-- High-signal feedback only.
-- Cite specific file/line.
-- Provide actionable fix recommendation and code snippet.
-- Be concise.`;
+1. No generic feedback. Explain WHY (root cause), IMPACT (production risk), and FIX (actionable code).
+2. Evidence-based: Always cite specific file/line and provide the offending codeSnippet.
+3. Framework-Aware: Tailor analysis to Next.js, React, Node.js, or detected stack best practices.
+4. Professional Tone: Be critical but objective. Use 'technicalReasoning' for deep dives.
+5. Acknowledge Quality: Use 'positiveFeedback' for excellent patterns.
+6. Confidence Scoring: Assign 'confidence' (high/medium/low) and 'severity' (critical/high/medium/low).
+
+Focus on what could break in a high-scale production environment.`;
 
 /**
  * Helper to get the model name from environment or fallback
