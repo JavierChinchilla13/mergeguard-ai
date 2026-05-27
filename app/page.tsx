@@ -104,6 +104,7 @@ export default function LandingPage() {
                 review={prData?.review} 
                 files={prData?.files}
                 prDetails={prData?.details}
+                metadata={prData?.metadata}
               />
             </motion.div>
           )}

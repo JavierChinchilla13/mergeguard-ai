@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseGitHubPRUrl, PRFile } from "@/lib/github";
-import { filterAndPrioritizeFiles, chunkFiles } from "@/lib/chunking";
-import { runAIReview, ReviewResponse } from "@/lib/gemini";
-import { getContextCache } from "@/lib/cache";
-
-// Global in-memory cache for PR results to avoid redundant API calls
-const resultsCache = new Map<string, any>();
+import { reviewCache } from "@/lib/cache-service";
+import { executeAIReviewPipeline } from "@/lib/pipeline";
 
 /**
  * API Route: /api/analyze-pr
- * Handles fetching PR data from GitHub and performing AI review using Gemini
+ * Handles fetching PR data from GitHub and performing AI review using Gemini with advanced caching and chunking.
  */
 export async function POST(req: NextRequest) {
   const requestId = Math.random().toString(36).substring(7);
-  const startTime = Date.now();
+  console.log(`[API INVOCATION] [ID: ${requestId}] [${new Date().toISOString()}]`);
 
   try {
     const { url } = await req.json();
@@ -21,14 +17,6 @@ export async function POST(req: NextRequest) {
     if (!url) {
       return NextResponse.json({ error: "PR URL is required" }, { status: 400 });
     }
-
-    // Check if we already have a cached result for this URL
-    if (resultsCache.has(url)) {
-      console.log(`[API CACHE HIT] [ID: ${requestId}] Returning cached results for: ${url}`);
-      return NextResponse.json(resultsCache.get(url));
-    }
-
-    console.log(`[API INVOCATION] [ID: ${requestId}] [${new Date().toISOString()}] URL: ${url}`);
 
     // 1. Parse the URL
     const prDetails = parseGitHubPRUrl(url);
@@ -65,70 +53,39 @@ export async function POST(req: NextRequest) {
 
     const allFiles: PRFile[] = await ghResponse.json();
 
-    // 3. Filter and Prioritize Files
-    const relevantFiles = filterAndPrioritizeFiles(allFiles);
-    
-    // 4. Chunk Diffs for AI analysis
-    const chunks = chunkFiles(relevantFiles);
-    const totalEstimatedTokens = chunks.reduce((acc, c) => acc + c.tokenCount, 0);
-    console.log(`[API] [ID: ${requestId}] Total estimated tokens: ${totalEstimatedTokens} across ${chunks.length} chunks.`);
+    // 3. Generate content hash for cache verification
+    // We hash the filenames + patches to detect any changes in the PR
+    const contentToHash = allFiles.map(f => f.filename + (f.patch || "")).join("|");
+    const prHash = reviewCache.generateHash(contentToHash);
 
-    if (chunks.length === 0) {
-      return NextResponse.json({
-        details: prDetails,
-        filesCount: 0,
-        review: {
-          summary: "No relevant source files found to analyze in this Pull Request.",
-          bugs: [], security: [], performance: [], codeSmells: [], suggestions: []
-        }
-      });
+    // 4. Check Advanced Server Cache
+    const cachedResult = reviewCache.get(url, prHash);
+    if (cachedResult) {
+      console.log(`[API CACHE HIT] [ID: ${requestId}] Returning verified cached results for: ${url}`);
+      return NextResponse.json(cachedResult);
     }
 
-    // 5. Run AI Analysis with aggressive safeguards
-    const CHUNK_LIMIT = 1;
-    if (chunks.length > CHUNK_LIMIT) {
-      console.warn(`[API] [ID: ${requestId}] PR is too large (${chunks.length} chunks). Only analyzing the first chunk.`);
-    }
+    // 5. Run AI Review Pipeline (Intelligent Chunking & Processing)
+    const { review, metadata } = await executeAIReviewPipeline(url, allFiles);
 
-    const mainDiff = chunks[0].content;
-    
-    // Attempt to use context caching
-    let cacheName = null;
-    try {
-      const cache = getContextCache();
-      cacheName = await cache.getOrCreateCache(url, mainDiff);
-    } catch (e) {
-      console.warn(`[API] [ID: ${requestId}] Cache manager failed, proceeding without cache.`);
-    }
-    
-    console.log(`[GEMINI REQUEST #1] [ID: ${requestId}] Sending chunk to AI review pipeline...`);
-    const reviewResult = await runAIReview(mainDiff, cacheName || undefined);
-
-    // If PR was truncated, add a warning to the summary
-    if (chunks.length > CHUNK_LIMIT) {
-      reviewResult.summary = `[⚠️ PARTIAL REVIEW] ${reviewResult.summary} (Note: This PR was too large for full analysis; only core logic was reviewed.)`;
-    }
-
-    const duration = Date.now() - startTime;
-    console.log(`[API SUCCESS] [ID: ${requestId}] Completed in ${duration}ms`);
-
+    // 6. Construct Final Response
     const finalResponse = {
       details: prDetails,
       filesCount: allFiles.length,
-      files: relevantFiles.map(f => ({
+      files: allFiles.map(f => ({
         filename: f.filename,
         status: f.status,
         additions: f.additions,
         deletions: f.deletions,
         patch: f.patch
       })),
-      review: reviewResult
+      review,
+      metadata
     };
 
-    // Store in cache
-    resultsCache.set(url, finalResponse);
+    // 7. Store in Cache
+    reviewCache.set(url, prHash, finalResponse);
 
-    // 6. Return the results
     return NextResponse.json(finalResponse);
 
   } catch (error: any) {
@@ -137,8 +94,6 @@ export async function POST(req: NextRequest) {
     const errorMessage = error.message || "An unexpected error occurred while processing the request.";
     let status = 500;
     
-    // Categorize errors for the frontend, but avoid using 404 for model missing errors
-    // as it confuses the browser into thinking the route itself is missing.
     if (errorMessage.includes("quota exceeded") || errorMessage.includes("429")) {
       status = 429;
     } else if (errorMessage.includes("invalid") || errorMessage.includes("required")) {
