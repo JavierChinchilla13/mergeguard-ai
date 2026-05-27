@@ -86,44 +86,6 @@ export function PRInput({ onAnalyze, isLoading }: PRInputProps) {
               )}
             </AnimatePresence>
           </form>
-
-          {isLoading && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="mt-8 space-y-6"
-            >
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-medium">
-                  <span className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                    Fetching pull request data...
-                  </span>
-                  <span className="text-muted-foreground text-xs uppercase tracking-widest">Step 1/3</span>
-                </div>
-                <div className="h-1 w-full overflow-hidden rounded-full bg-secondary">
-                  <motion.div 
-                    className="h-full bg-primary"
-                    initial={{ width: "0%" }}
-                    animate={{ width: "40%" }}
-                    transition={{ duration: 1 }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm font-medium">
-                  <span className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Analyzing code patterns...
-                  </span>
-                </div>
-                <div className="h-1 w-full overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full w-0 bg-primary/30" />
-                </div>
-              </div>
-            </motion.div>
-          )}
         </CardContent>
       </Card>
       

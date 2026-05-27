@@ -22,9 +22,9 @@ merge-guard/
 │   │   └── post-review/ # GitHub Comment Posting Service
 │   ├── globals.css      # Custom Tailwind v4 config
 │   ├── layout.tsx       # Root layout
-│   └── page.tsx         # Main Landing Page (State orchestration)
+│   └── page.tsx         # Main Landing Page (Streaming orchestration)
 ├── components/
-│   ├── sections/        # Hero, PR Input, and Results sections
+│   ├── sections/        # Hero, PR Input, Streaming, and Results
 │   └── ui/              # Reusable atomic UI components
 ├── lib/
 │   ├── gemini.ts        # AI Engine (Retries, Quota, ID Fallbacks)
@@ -42,27 +42,25 @@ merge-guard/
 
 ## ✨ Key Features Implemented
 
-### 1. Production AI Review Engine
+### 1. High-Fidelity Streaming Experience
+- **Live Terminal Logs:** A developer-first "Terminal" UI that streams real-time analysis logs (e.g., `[INFO] Parsing changed files`, `[SECURITY] Scanning vulnerabilities`).
+- **Execution Flow Tracking:** Animated stage indicators that highlight the current step of the AI reasoning process.
+- **Progressive Reveal:** UI sections appear incrementally as the AI completes different facets of the review (Security, Bugs, Performance).
+- **Real-time Metrics:** Displays elapsed analysis time and percentage completion with high-precision timers.
+
+### 2. Production AI Review Engine
 - **Gemini 3.5 Flash Integration:** Powered by the latest Flash model for superior analysis speed.
-- **Incremental Chunking:** Supports large PRs by splitting diffs into safe token-sized chunks and merging results incrementally.
-- **Intelligent Prioritization:** Automatically focuses on critical code (e.g., `auth/`, `api/`, `src/`) while skipping noise (lockfiles, binaries, generated assets).
-- **Structured JSON Outputs:** Uses strict response schemas to ensure feedback is always actionable and parseable.
+- **Incremental Chunking:** Supports large PRs by splitting diffs into safe token-sized chunks.
+- **Intelligent Prioritization:** Automatically focuses on critical code while skipping noise (lockfiles, binaries).
+- **Structured JSON Outputs:** Uses strict response schemas for parseable feedback.
 
-### 2. High-Performance Caching
-- **Server-Side Result Caching:** Persists analysis results based on PR URL and content hash (SHA-256). Detects if a PR has changed to invalidate cache automatically.
-- **Verifiable Context Caching:** Leverages `GoogleAICacheManager` to reuse analysis context in the Gemini engine, reducing token overhead.
-- **Visible Cache Indicators:** The UI explicitly displays "Cache Hit" badges and timestamps to demonstrate performance optimizations.
-
-### 3. Advanced Analysis Metadata
-- **Stats Dashboard:** A new "Stats" panel in the UI shows:
-    - **Total Tokens:** Estimated resource usage.
-    - **Analysis Duration:** Precise timing of the AI engine.
-    - **Chunk Count:** Breakdown of how the PR was segmented.
-    - **Skip Logic:** Transparent reporting on which files were excluded from analysis.
-    - **Model Details:** Which specific Gemini variant was utilized.
+### 3. High-Performance Caching
+- **SHA-256 Content Caching:** Persists analysis results based on PR content hashes to avoid redundant API calls.
+- **Verifiable Context Caching:** Leverages `GoogleAICacheManager` to reuse analysis context in the Gemini engine.
+- **Cache Hit UI:** Visibly badges results that were served from the high-speed server cache.
 
 ### 4. GitHub Workflow Integration
-- **Direct PR Commenting:** Post AI reviews directly to GitHub with professionally formatted Markdown.
+- **Direct PR Commenting:** Post AI reviews directly to GitHub with professionally formatted Markdown reports.
 - **Live File Inspection:** Tabbable interface to switch between AI Review, Changed Files (with patches), and Analysis Stats.
 
 ### 5. Technical Quality & Resilience
