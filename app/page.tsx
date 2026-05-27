@@ -80,31 +80,33 @@ export default function LandingPage() {
       // Stage 2: Parsing & Prioritizing
       setCurrentStage(ANALYSIS_STAGES[2]);
       setProgress(28);
-      addLog("[FILTER] Running file prioritization engine...", 'info');
+      addLog("[FILTER] Running high-precision file prioritization...", 'info');
       
       const prioritizedCount = data.metadata?.insights?.filter((i: any) => i.decision === 'prioritized').length || 0;
       const skippedCount = data.metadata?.insights?.filter((i: any) => i.decision === 'skipped').length || 0;
       
-      if (skippedCount > 0) addLog(`[FILTER] Auto-skipped ${skippedCount} noise files (lockfiles/assets).`, 'info');
-      if (prioritizedCount > 0) addLog(`[FILTER] Prioritized ${prioritizedCount} high-risk logic files.`, 'info');
+      if (skippedCount > 0) addLog(`[FILTER] Auto-skipped ${skippedCount} low-signal files (lockfiles/assets).`, 'info');
+      if (prioritizedCount > 0) addLog(`[FILTER] Prioritized ${prioritizedCount} high-risk logic files for deep analysis.`, 'info');
 
-      if (data.metadata?.cacheStatus === 'hit') {
-        addLog("[CACHE HIT] SHA-256 match. Reusing verified analysis.", 'cache');
+      if (data.cacheStatus === 'HIT') {
+        addLog("[CACHE HIT] SHA-256 content match. Reusing previous analysis results.", 'cache');
+      } else if (data.cacheStatus === 'INVALIDATED') {
+        addLog("[CACHE INVALIDATED] PR content has changed. Re-running AI pipeline.", 'info');
       } else {
-        addLog("[CACHE MISS] No existing analysis found for this content.", 'info');
+        addLog("[CACHE MISS] No existing analysis found for this PR state.", 'info');
       }
 
       await new Promise(r => setTimeout(r, 500));
       setCurrentStage(ANALYSIS_STAGES[3]);
       setProgress(42);
-      addLog(`[CHUNK] Segemented diff into ${data.metadata?.chunkCount || 1} token-safe batches.`, 'info');
+      addLog(`[CHUNK] Segmented diff into ${data.metadata?.chunkCount || 1} optimized AI batches (~${(data.metadata?.totalTokens || 0).toLocaleString()} tokens).`, 'info');
 
       // Stage 3: AI Reasoning
       setCurrentStage(ANALYSIS_STAGES[4]);
       setProgress(58);
-      addLog(`[AI] Starting Gemini reasoning with ${data.metadata?.model}...`, 'ai');
+      addLog(`[AI] Initializing reasoning core with ${data.metadata?.model}...`, 'ai');
       
-      if (data.review?.bugs?.length > 0) addLog(`[BUG] Potential logic flaw detected in ${data.review.bugs[0].file}`, 'bug');
+      if (data.review?.bugs?.length > 0) addLog(`[BUG] Analysis found ${data.review.bugs.length} potential logic flaws.`, 'bug');
 
       await new Promise(r => setTimeout(r, 800));
       setCurrentStage(ANALYSIS_STAGES[5]);

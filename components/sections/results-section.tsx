@@ -197,32 +197,47 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
             {/* Metrics Dashboard */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard icon={<Cpu className="h-5 w-5" />} label="AI Engine" value={metadata.model} />
-              <StatCard icon={<Layers className="h-5 w-5" />} label="Estimated Tokens" value={`~${metadata.totalTokens.toLocaleString()}`} />
-              <StatCard icon={<Target className="h-5 w-5" />} label="Analysis Scope" value={`${metadata.filesAnalyzed} Files`} subValue={`${metadata.chunkCount} AI Chunks`} />
-              <StatCard icon={<Clock className="h-5 w-5" />} label="Pipeline Duration" value={`${(metadata.duration / 1000).toFixed(2)}s`} subValue={`AI Latency: ${(metadata.latencies.ai / 1000).toFixed(2)}s`} />
+              <StatCard icon={<Layers className="h-5 w-5" />} label="Token Consumption" value={`~${metadata.totalTokens.toLocaleString()}`} subValue="Optimized via chunking" />
+              <StatCard icon={<Target className="h-5 w-5" />} label="Analysis Resolution" value={`${metadata.filesAnalyzed} Files`} subValue={`${metadata.chunkCount} Processing Chunks`} />
+              <StatCard icon={<Gauge className="h-5 w-5" />} label="Compute Latency" value={`${(metadata.latencies.ai / 1000).toFixed(2)}s`} subValue={`Total Pipeline: ${(metadata.duration / 1000).toFixed(2)}s`} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Latency Instrumentation */}
-              <Card className="lg:col-span-1 bg-card/30 border-border/40">
-                <CardHeader>
-                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Gauge className="h-4 w-4 text-primary" />
-                    Latency Instrumentation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <LatencyMetric label="GitHub API" value={metadata.latencies.github} maxValue={3000} />
-                  <LatencyMetric label="Diff Chunking" value={metadata.latencies.chunking} maxValue={1000} />
-                  <LatencyMetric label="Gemini Reasoning" value={metadata.latencies.ai} maxValue={15000} />
-                  <div className="pt-4 border-t border-white/5 space-y-2">
-                    <div className="flex justify-between text-xs font-mono">
-                      <span className="text-muted-foreground">Retry Count:</span>
-                      <span className={metadata.retryCount > 0 ? "text-yellow-500" : "text-green-500"}>{metadata.retryCount}</span>
+              {/* Resource Optimization Panel */}
+              <Card className="lg:col-span-1 bg-card/30 border-border/40 overflow-hidden">
+                <div className="bg-primary/5 px-4 py-2 border-b border-border/40">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                    <Database className="h-3 w-3" /> Resource Strategy
+                  </p>
+                </div>
+                <CardContent className="p-6 space-y-6">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Cache Efficiency</p>
+                    <div className="flex items-center justify-between">
+                      <Badge variant={metadata.cacheStatus === 'hit' ? "default" : "outline"} className={cn(
+                        "h-5 px-1.5 text-[9px] uppercase font-bold",
+                        metadata.cacheStatus === 'hit' ? "bg-green-500/20 text-green-500 border-green-500/30" : "text-muted-foreground border-white/10"
+                      )}>
+                        {metadata.cacheStatus === 'hit' ? "High Accuracy HIT" : "Cold Start MISS"}
+                      </Badge>
+                      <span className="text-[10px] font-mono text-muted-foreground">SHA-256 Verified</span>
                     </div>
-                    <div className="flex justify-between text-xs font-mono">
-                      <span className="text-muted-foreground">Cache State:</span>
-                      <span className="text-primary">{metadata.cacheStatus.toUpperCase()}</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <LatencyMetric label="Network (GitHub)" value={metadata.latencies.github} maxValue={3000} />
+                    <LatencyMetric label="Compute (Gemini)" value={metadata.latencies.ai} maxValue={15000} />
+                  </div>
+
+                  <div className="pt-4 border-t border-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center">
+                        <Activity className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-foreground">Large PR Management</p>
+                        <p className="text-[10px] text-muted-foreground">{metadata.chunkCount > 1 ? `Segmented into ${metadata.chunkCount} chunks` : "Single-pass optimization used"}</p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

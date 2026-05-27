@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 
+export type CacheStatus = 'HIT' | 'MISS' | 'INVALIDATED' | 'EXPIRED';
+
 interface CachedReview {
   data: any;
   timestamp: number;
@@ -7,53 +9,54 @@ interface CachedReview {
 }
 
 /**
- * Enhanced server-side caching service for AI reviews
+ * Advanced production-grade caching service with verifiable state tracking
  */
 class ReviewCacheService {
   private cache = new Map<string, CachedReview>();
   private readonly TTL = 1000 * 60 * 60; // 1 hour TTL
 
   /**
-   * Generates a unique hash for the PR content to detect changes
+   * Generates a deterministic hash for the PR content
    */
   generateHash(content: string): string {
     return crypto.createHash('sha256').update(content).digest('hex');
   }
 
   /**
-   * Gets a cached review if it exists and hasn't expired
+   * Gets a cached review with explicit status reporting
    */
-  get(url: string, currentHash: string): any | null {
+  get(url: string, currentHash: string): { data: any | null, status: CacheStatus, cachedAt?: number } {
     const cached = this.cache.get(url);
     
     if (!cached) {
-      console.log(`[CACHE MISS] No entry for URL: ${url}`);
-      return null;
+      return { data: null, status: 'MISS' };
     }
 
     const isExpired = Date.now() - cached.timestamp > this.TTL;
     const isHashMatch = cached.hash === currentHash;
 
-    if (!isExpired && isHashMatch) {
-      console.log(`[CACHE HIT] Valid entry found for URL: ${url}`);
-      return {
-        ...cached.data,
-        cacheMetadata: {
-          hit: true,
-          cachedAt: cached.timestamp,
-          reused: true
-        }
-      };
-    }
-
     if (isExpired) {
-      console.log(`[CACHE EXPIRED] Entry for URL: ${url} has expired.`);
       this.cache.delete(url);
-    } else if (!isHashMatch) {
-      console.log(`[CACHE MISS] Content changed for URL: ${url}. Hash mismatch.`);
+      return { data: null, status: 'EXPIRED' };
     }
 
-    return null;
+    if (!isHashMatch) {
+      console.log(`[CACHE] Hash mismatch for ${url}. Old: ${cached.hash.slice(0,8)}, New: ${currentHash.slice(0,8)}`);
+      return { data: null, status: 'INVALIDATED' };
+    }
+
+    return {
+      data: {
+        ...cached.data,
+        metadata: {
+          ...cached.data.metadata,
+          cacheStatus: 'hit',
+          cachedAt: cached.timestamp
+        }
+      },
+      status: 'HIT',
+      cachedAt: cached.timestamp
+    };
   }
 
   /**

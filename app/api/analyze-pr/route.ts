@@ -60,10 +60,14 @@ export async function POST(req: NextRequest) {
     const prHash = reviewCache.generateHash(contentToHash);
 
     // 4. Check Advanced Server Cache
-    const cachedResult = reviewCache.get(url, prHash);
+    const { data: cachedResult, status: cacheStatus } = reviewCache.get(url, prHash);
+
     if (cachedResult) {
-      console.log(`[API CACHE HIT] [ID: ${requestId}] Returning verified cached results for: ${url}`);
-      return NextResponse.json(cachedResult);
+      console.log(`[API CACHE ${cacheStatus}] [ID: ${requestId}] Returning verified cached results for: ${url}`);
+      return NextResponse.json({
+        ...cachedResult,
+        cacheStatus
+      });
     }
 
     // 5. Run AI Review Pipeline (Enhanced with observability)
@@ -72,6 +76,7 @@ export async function POST(req: NextRequest) {
     // 6. Construct Final Response
     const finalResponse = {
       details: prDetails,
+      cacheStatus,
       filesCount: allFiles.length,
       files: allFiles.map(f => ({
         filename: f.filename,
