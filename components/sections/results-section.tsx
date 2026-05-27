@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import Link from "next/link"
 import { 
   Bug, 
   ShieldAlert, 
@@ -14,7 +15,11 @@ import {
   ExternalLink,
   FileCode,
   Activity,
-  CheckCircle2
+  CheckCircle2,
+  Send,
+  Loader2,
+  CheckCircle,
+  ExternalLink as ExternalLinkIcon
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -40,6 +45,44 @@ const CATEGORY_MAP = {
 export function ResultsSection({ review, files, prDetails }: ResultsSectionProps) {
   const [expandedIssue, setExpandedIssue] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<"issues" | "files">("issues")
+  
+  // Posting state
+  const [isPosting, setIsPosting] = useState(false)
+  const [postUrl, setPostUrl] = useState<string | null>(null)
+  const [postError, setPostError] = useState<string | null>(null)
+
+  const handlePostReview = async () => {
+    if (!prDetails || isPosting || postUrl) return;
+
+    setIsPosting(true);
+    setPostError(null);
+
+    try {
+      const response = await fetch("/api/post-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner: prDetails.owner,
+          repo: prDetails.repo,
+          pullNumber: prDetails.pullNumber,
+          review: review
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to post review");
+      }
+
+      setPostUrl(data.commentUrl);
+    } catch (err: any) {
+      setPostError(err.message);
+      console.error("Post Error:", err);
+    } finally {
+      setIsPosting(false);
+    }
+  };
 
   const categories = Object.entries(CATEGORY_MAP).map(([key, config]) => {
     const categoryIssues = (review as any)[key] || []
@@ -61,8 +104,43 @@ export function ResultsSection({ review, files, prDetails }: ResultsSectionProps
             <Activity className="h-4 w-4" />
             <span>{prDetails?.owner}/{prDetails?.repo} • PR #{prDetails?.pullNumber}</span>
           </div>
-          <h2 className="text-3xl font-bold tracking-tight">Analysis Report</h2>
-          <p className="text-muted-foreground">{review?.summary || "Comprehensive AI audit results."}</p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <h2 className="text-3xl font-bold tracking-tight">Analysis Report</h2>
+            {prDetails && !postUrl && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 gap-2 text-xs font-semibold hover:bg-primary hover:text-primary-foreground transition-all"
+                onClick={handlePostReview}
+                disabled={isPosting}
+              >
+                {isPosting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Posting to GitHub...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-3.5 w-3.5" />
+                    Post Review to GitHub
+                  </>
+                )}
+              </Button>
+            )}
+            {postUrl && (
+              <div className="flex items-center gap-2 rounded-full bg-green-500/10 px-3 py-1 text-xs font-medium text-green-500 border border-green-500/20">
+                <CheckCircle className="h-3.5 w-3.5" />
+                Posted Successfully
+                <Link href={postUrl} target="_blank" className="ml-1 underline flex items-center gap-0.5">
+                  View <ExternalLinkIcon className="h-2.5 w-2.5" />
+                </Link>
+              </div>
+            )}
+          </div>
+          <p className="text-muted-foreground mt-2">{review?.summary || "Comprehensive AI audit results."}</p>
+          {postError && (
+            <p className="text-xs text-destructive font-medium mt-2">Error: {postError}</p>
+          )}
         </div>
         
         <div className="flex bg-muted/50 p-1 rounded-lg border border-border/50">
