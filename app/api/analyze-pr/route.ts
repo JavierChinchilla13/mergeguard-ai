@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       headers["Authorization"] = `token ${GITHUB_TOKEN}`;
     }
 
+    const ghStartTime = Date.now();
     const ghResponse = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/pulls/${pullNumber}/files?per_page=100`,
       { headers }
@@ -52,9 +53,9 @@ export async function POST(req: NextRequest) {
     }
 
     const allFiles: PRFile[] = await ghResponse.json();
+    const githubLatency = Date.now() - ghStartTime;
 
     // 3. Generate content hash for cache verification
-    // We hash the filenames + patches to detect any changes in the PR
     const contentToHash = allFiles.map(f => f.filename + (f.patch || "")).join("|");
     const prHash = reviewCache.generateHash(contentToHash);
 
@@ -65,8 +66,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(cachedResult);
     }
 
-    // 5. Run AI Review Pipeline (Intelligent Chunking & Processing)
-    const { review, metadata } = await executeAIReviewPipeline(url, allFiles);
+    // 5. Run AI Review Pipeline (Enhanced with observability)
+    const { review, metadata } = await executeAIReviewPipeline(url, allFiles, githubLatency);
 
     // 6. Construct Final Response
     const finalResponse = {

@@ -1,5 +1,5 @@
 /**
- * Utility for intelligent PR diff chunking and prioritization
+ * Utility for intelligent PR diff chunking and prioritization with observability insights.
  */
 
 export interface ChunkedDiff {
@@ -8,42 +8,92 @@ export interface ChunkedDiff {
   tokenCount: number;
 }
 
+export interface FileInsight {
+  filename: string;
+  decision: 'prioritized' | 'analyzed' | 'skipped';
+  reason: string;
+}
+
 const IGNORED_PATTERNS = [
-  'package-lock.json',
-  'yarn.lock',
-  'pnpm-lock.yaml',
-  'node_modules/',
-  'dist/',
-  'build/',
-  '.next/',
-  'public/',
-  '.ico',
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.svg',
-  '.pdf',
-  '.bin',
-  '.min.js',
-  '.min.css',
-  '.map',
+  { pattern: 'package-lock.json', reason: 'Generated lockfile' },
+  { pattern: 'yarn.lock', reason: 'Generated lockfile' },
+  { pattern: 'pnpm-lock.yaml', reason: 'Generated lockfile' },
+  { pattern: 'node_modules/', reason: 'Dependency directory' },
+  { pattern: 'dist/', reason: 'Build artifact' },
+  { pattern: 'build/', reason: 'Build artifact' },
+  { pattern: '.next/', reason: 'Next.js internals' },
+  { pattern: 'public/', reason: 'Static assets' },
+  { pattern: '.ico', reason: 'Binary/Icon' },
+  { pattern: '.png', reason: 'Image asset' },
+  { pattern: '.jpg', reason: 'Image asset' },
+  { pattern: '.jpeg', reason: 'Image asset' },
+  { pattern: '.gif', reason: 'Image asset' },
+  { pattern: '.svg', reason: 'Vector asset' },
+  { pattern: '.pdf', reason: 'Document' },
+  { pattern: '.bin', reason: 'Binary file' },
+  { pattern: '.min.js', reason: 'Minified code' },
+  { pattern: '.min.css', reason: 'Minified style' },
+  { pattern: '.map', reason: 'Source map' },
 ];
 
 const PRIORITY_PATTERNS = [
-  'src/auth/',
-  'app/api/',
-  'src/api/',
-  'src/services/',
-  'server/',
-  'models/',
-  'controllers/',
-  'middleware/',
-  'utils/security',
-  'hooks/',
-  'src/',
-  'app/',
+  { pattern: 'src/auth/', reason: 'High-risk security logic' },
+  { pattern: 'app/api/', reason: 'API endpoint logic' },
+  { pattern: 'src/api/', reason: 'API endpoint logic' },
+  { pattern: 'src/services/', reason: 'Core business services' },
+  { pattern: 'server/', reason: 'Backend infrastructure' },
+  { pattern: 'models/', reason: 'Database schema/models' },
+  { pattern: 'controllers/', reason: 'Request handling logic' },
+  { pattern: 'middleware/', reason: 'Request pipeline logic' },
+  { pattern: 'utils/security', reason: 'Critical security utility' },
+  { pattern: 'hooks/', reason: 'React state/lifecycle logic' },
+  { pattern: 'src/', reason: 'Primary source code' },
+  { pattern: 'app/', reason: 'Application routes/logic' },
 ];
+
+/**
+ * Filters and prioritizes files from a PR, generating technical insights for observability.
+ */
+export function filterAndPrioritizeFiles(files: any[]): { filtered: any[], insights: FileInsight[] } {
+  const insights: FileInsight[] = [];
+  
+  // 1. Filter out ignored files
+  const filtered = files.filter(file => {
+    const skipMatch = IGNORED_PATTERNS.find(p => {
+      if (p.pattern.startsWith('.')) return file.filename.endsWith(p.pattern);
+      return file.filename.includes(p.pattern);
+    });
+
+    if (skipMatch) {
+      insights.push({ filename: file.filename, decision: 'skipped', reason: skipMatch.reason });
+      return false;
+    }
+    return true;
+  });
+
+  // 2. Prioritize remaining files
+  const prioritized = filtered.sort((a, b) => {
+    const aPriority = PRIORITY_PATTERNS.findIndex(p => a.filename.includes(p.pattern));
+    const bPriority = PRIORITY_PATTERNS.findIndex(p => b.filename.includes(p.pattern));
+
+    if (aPriority === -1 && bPriority === -1) return 0;
+    if (aPriority === -1) return 1;
+    if (bPriority === -1) return -1;
+    return aPriority - bPriority;
+  });
+
+  // 3. Generate insights for analyzed files
+  prioritized.forEach(file => {
+    const priorityMatch = PRIORITY_PATTERNS.find(p => file.filename.includes(p.pattern));
+    insights.push({
+      filename: file.filename,
+      decision: priorityMatch ? 'prioritized' : 'analyzed',
+      reason: priorityMatch ? priorityMatch.reason : 'Standard source analysis'
+    });
+  });
+
+  return { filtered: prioritized, insights };
+}
 
 /**
  * Estimates token count based on character count
@@ -53,38 +103,12 @@ export function estimateTokens(text: string): number {
 }
 
 /**
- * Filters and prioritizes files from a PR
- */
-export function filterAndPrioritizeFiles(files: any[]): any[] {
-  // 1. Filter out ignored files
-  const filtered = files.filter(file => {
-    const isIgnored = IGNORED_PATTERNS.some(pattern => {
-      if (pattern.startsWith('.')) return file.filename.endsWith(pattern);
-      return file.filename.includes(pattern);
-    });
-    if (isIgnored) console.log(`[CHUNKING] Skipped noise file: ${file.filename}`);
-    return !isIgnored;
-  });
-
-  // 2. Sort by priority
-  return filtered.sort((a, b) => {
-    const aPriority = PRIORITY_PATTERNS.findIndex(p => a.filename.includes(p));
-    const bPriority = PRIORITY_PATTERNS.findIndex(p => b.filename.includes(p));
-
-    if (aPriority === -1 && bPriority === -1) return 0;
-    if (aPriority === -1) return 1;
-    if (bPriority === -1) return -1;
-    return aPriority - bPriority;
-  });
-}
-
-/**
  * Chunks PR files and truncates large patches to save tokens
  */
 export function chunkFiles(
   files: any[], 
-  maxTokensPerChunk: number = 30000, // Reduced for free tier reliability
-  maxCharsPerFile: number = 12000   // ~3000 tokens max per file
+  maxTokensPerChunk: number = 30000, 
+  maxCharsPerFile: number = 12000
 ): ChunkedDiff[] {
   const chunks: ChunkedDiff[] = [];
   let currentChunkFiles: string[] = [];

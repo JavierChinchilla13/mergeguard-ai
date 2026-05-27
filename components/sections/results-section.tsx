@@ -24,11 +24,16 @@ import {
   Clock,
   Cpu,
   Layers,
-  FileText
+  FileText,
+  BarChart3,
+  Search,
+  ArrowUpRight,
+  Target,
+  Gauge
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { CodeBlock } from "@/components/ui/code-block"
 import { ReviewResponse, ReviewFinding } from "@/lib/gemini"
 import { AnalysisMetadata } from "@/lib/pipeline"
@@ -52,7 +57,7 @@ const CATEGORY_MAP = {
 
 export function ResultsSection({ review, files, prDetails, metadata }: ResultsSectionProps) {
   const [expandedIssue, setExpandedIssue] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<"issues" | "files" | "metadata">("issues")
+  const [activeTab, setActiveTab] = useState<"issues" | "files" | "observability">("issues")
   
   // Posting state
   const [isPosting, setIsPosting] = useState(false)
@@ -102,7 +107,7 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
               <span>{prDetails?.owner}/{prDetails?.repo} • #{prDetails?.pullNumber}</span>
             </div>
             <Badge variant="outline" className={cn(
-              "h-6 px-2 capitalize",
+              "h-6 px-2 capitalize font-mono text-[10px]",
               review?.overallRating === 'excellent' ? "text-green-500 border-green-500/20 bg-green-500/5" :
               review?.overallRating === 'good' ? "text-blue-500 border-blue-500/20 bg-blue-500/5" :
               review?.overallRating === 'needs_work' ? "text-yellow-500 border-yellow-500/20 bg-yellow-500/5" :
@@ -111,7 +116,7 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
               Rating: {review?.overallRating?.replace('_', ' ') || 'Pending'}
             </Badge>
             {metadata?.cacheStatus === 'hit' && (
-              <Badge variant="secondary" className="h-6 gap-1.5 bg-blue-500/10 text-blue-500 border-blue-500/20">
+              <Badge variant="secondary" className="h-6 gap-1.5 bg-blue-500/10 text-blue-500 border-blue-500/20 font-mono text-[10px]">
                 <Database className="h-3 w-3" />
                 Cache Hit
               </Badge>
@@ -137,7 +142,7 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
               </div>
             )}
           </div>
-          <p className="text-muted-foreground mt-2 max-w-2xl">{review?.summary || "Comprehensive AI audit results."}</p>
+          <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-relaxed">{review?.summary || "Comprehensive AI audit results."}</p>
           
           {review?.positiveFeedback?.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -158,7 +163,7 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
         <div className="flex bg-muted/50 p-1 rounded-lg border border-border/50 self-start md:self-center">
           <TabButton active={activeTab === "issues"} onClick={() => setActiveTab("issues")} icon={<AlertTriangle className="h-4 w-4" />} label="Review" count={totalIssues} />
           <TabButton active={activeTab === "files"} onClick={() => setActiveTab("files")} icon={<FileCode className="h-4 w-4" />} label="Files" count={files?.length} />
-          <TabButton active={activeTab === "metadata"} onClick={() => setActiveTab("metadata")} icon={<Layers className="h-4 w-4" />} label="Stats" />
+          <TabButton active={activeTab === "observability"} onClick={() => setActiveTab("observability")} icon={<BarChart3 className="h-4 w-4" />} label="Observability" />
         </div>
       </div>
 
@@ -187,21 +192,101 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
             {files?.map((file, idx) => <FileCard key={idx} file={file} />)}
           </motion.div>
         )}
-        {activeTab === "metadata" && metadata && (
-          <motion.div key="metadata-tab" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+        {activeTab === "observability" && metadata && (
+          <motion.div key="observability-tab" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
+            {/* Metrics Dashboard */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard icon={<Cpu className="h-5 w-5" />} label="Model" value={metadata.model} />
-              <StatCard icon={<Layers className="h-5 w-5" />} label="Total Tokens" value={`~${metadata.totalTokens.toLocaleString()}`} />
-              <StatCard icon={<FileText className="h-5 w-5" />} label="Files Analyzed" value={`${metadata.filesAnalyzed} / ${metadata.filesAnalyzed + metadata.filesSkipped}`} />
-              <StatCard icon={<Clock className="h-5 w-5" />} label="Duration" value={`${(metadata.duration / 1000).toFixed(2)}s`} />
-              <StatCard icon={<Database className="h-5 w-5" />} label="Cache Status" value={metadata.cacheStatus.toUpperCase()} subValue={metadata.cachedAt ? `Reused from ${new Date(metadata.cachedAt).toLocaleTimeString()}` : undefined} />
-              <StatCard icon={<Layers className="h-5 w-5" />} label="AI Chunks" value={metadata.chunkCount.toString()} />
+              <StatCard icon={<Cpu className="h-5 w-5" />} label="AI Engine" value={metadata.model} />
+              <StatCard icon={<Layers className="h-5 w-5" />} label="Estimated Tokens" value={`~${metadata.totalTokens.toLocaleString()}`} />
+              <StatCard icon={<Target className="h-5 w-5" />} label="Analysis Scope" value={`${metadata.filesAnalyzed} Files`} subValue={`${metadata.chunkCount} AI Chunks`} />
+              <StatCard icon={<Clock className="h-5 w-5" />} label="Pipeline Duration" value={`${(metadata.duration / 1000).toFixed(2)}s`} subValue={`AI Latency: ${(metadata.latencies.ai / 1000).toFixed(2)}s`} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Latency Instrumentation */}
+              <Card className="lg:col-span-1 bg-card/30 border-border/40">
+                <CardHeader>
+                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                    <Gauge className="h-4 w-4 text-primary" />
+                    Latency Instrumentation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <LatencyMetric label="GitHub API" value={metadata.latencies.github} maxValue={3000} />
+                  <LatencyMetric label="Diff Chunking" value={metadata.latencies.chunking} maxValue={1000} />
+                  <LatencyMetric label="Gemini Reasoning" value={metadata.latencies.ai} maxValue={15000} />
+                  <div className="pt-4 border-t border-white/5 space-y-2">
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-muted-foreground">Retry Count:</span>
+                      <span className={metadata.retryCount > 0 ? "text-yellow-500" : "text-green-500"}>{metadata.retryCount}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-mono">
+                      <span className="text-muted-foreground">Cache State:</span>
+                      <span className="text-primary">{metadata.cacheStatus.toUpperCase()}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Pipeline Insights */}
+              <Card className="lg:col-span-2 bg-card/30 border-border/40">
+                <CardHeader>
+                  <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                    <Search className="h-4 w-4 text-primary" />
+                    Pipeline Decision Log
+                  </CardTitle>
+                  <CardDescription className="text-xs">Exposing the logic behind file prioritization and filtering.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] overflow-y-auto space-y-2 font-mono text-[11px] scrollbar-none pr-4">
+                    {metadata.insights.map((insight, i) => (
+                      <div key={i} className="flex items-start gap-3 p-2 rounded bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-colors">
+                        <Badge variant="outline" className={cn(
+                          "h-5 px-1.5 text-[9px] uppercase font-bold shrink-0",
+                          insight.decision === 'prioritized' ? "text-purple-400 border-purple-500/30 bg-purple-500/5" :
+                          insight.decision === 'skipped' ? "text-muted-foreground border-white/10" :
+                          "text-green-400 border-green-500/30 bg-green-500/5"
+                        )}>
+                          {insight.decision}
+                        </Badge>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground truncate">{insight.filename}</p>
+                          <p className="text-muted-foreground mt-0.5 italic">{insight.reason}</p>
+                        </div>
+                        {insight.decision === 'prioritized' && <ArrowUpRight className="h-3 w-3 text-purple-400 shrink-0" />}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </section>
   )
+}
+
+function LatencyMetric({ label, value, maxValue }: { label: string, value: number, maxValue: number }) {
+  const percentage = Math.min((value / maxValue) * 100, 100);
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between text-[11px] font-mono">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="text-foreground font-bold">{value}ms</span>
+      </div>
+      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: `${percentage}%` }}
+          className={cn(
+            "h-full rounded-full",
+            percentage > 80 ? "bg-red-500" : percentage > 50 ? "bg-yellow-500" : "bg-primary"
+          )}
+        />
+      </div>
+    </div>
+  );
 }
 
 function TabButton({ active, onClick, icon, label, count }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, count?: number }) {
@@ -214,13 +299,13 @@ function TabButton({ active, onClick, icon, label, count }: { active: boolean, o
 
 function StatCard({ icon, label, value, subValue }: { icon: React.ReactNode, label: string, value: string, subValue?: string }) {
   return (
-    <Card className="bg-card/50">
+    <Card className="bg-card/50 border-border/40">
       <CardContent className="p-6 flex items-start gap-4">
         <div className="mt-1 rounded-lg bg-primary/10 p-2 text-primary">{icon}</div>
         <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-          <p className="text-xl font-bold mt-1">{value}</p>
-          {subValue && <p className="text-[10px] text-muted-foreground mt-1">{subValue}</p>}
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">{label}</p>
+          <p className="text-lg font-bold mt-1 tracking-tight truncate">{value}</p>
+          {subValue && <p className="text-[10px] font-mono text-muted-foreground mt-1 opacity-70">{subValue}</p>}
         </div>
       </CardContent>
     </Card>
@@ -240,21 +325,21 @@ function EmptyState() {
 function FileCard({ file }: { file: any }) {
   const [showPatch, setShowPatch] = useState(false)
   return (
-    <Card className="border-border/40 overflow-hidden">
-      <CardHeader className="p-4 md:p-6 cursor-pointer" onClick={() => setShowPatch(!showPatch)}>
+    <Card className="border-border/40 overflow-hidden bg-card/30">
+      <CardHeader className="p-4 md:p-6 cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setShowPatch(!showPatch)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center"><FileCode className="h-5 w-5 text-muted-foreground" /></div>
             <div>
-              <CardTitle className="text-base font-mono">{file.filename}</CardTitle>
-              <div className="flex items-center gap-3 mt-1 text-xs font-medium">
+              <CardTitle className="text-base font-mono truncate max-w-[200px] md:max-w-md">{file.filename}</CardTitle>
+              <div className="flex items-center gap-3 mt-1 text-[10px] font-mono">
                 <span className="text-green-500">+{file.additions}</span>
                 <span className="text-red-500">-{file.deletions}</span>
-                <Badge variant="outline" className="h-5 px-1.5 text-[10px] uppercase">{file.status}</Badge>
+                <Badge variant="outline" className="h-4 px-1 text-[9px] uppercase border-white/10 text-muted-foreground">{file.status}</Badge>
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground">{showPatch ? "Hide Patch" : "Show Patch"}</Button>
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground text-xs">{showPatch ? "Hide Patch" : "Show Patch"}</Button>
         </div>
       </CardHeader>
       <AnimatePresence>{showPatch && file.patch && (
@@ -268,21 +353,21 @@ function FileCard({ file }: { file: any }) {
 
 function IssueCard({ issue, isExpanded, onToggle }: { issue: ReviewFinding, isExpanded: boolean, onToggle: () => void }) {
   return (
-    <Card className={cn("overflow-hidden transition-all duration-200 border-border/40 hover:border-primary/30", isExpanded && "border-primary/50 shadow-lg shadow-primary/5")}>
-      <CardHeader className="cursor-pointer select-none p-4 md:p-6" onClick={onToggle}>
+    <Card className={cn("overflow-hidden transition-all duration-200 border-border/40 bg-card/40 hover:border-primary/30", isExpanded && "border-primary/50 shadow-lg shadow-primary/5")}>
+      <CardHeader className="cursor-pointer select-none p-4 md:p-6 hover:bg-white/[0.01]" onClick={onToggle}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4 w-full">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2 mb-1">
-                <CardTitle className="text-lg">{issue.title}</CardTitle>
-                <Badge variant={issue.severity as any} className="capitalize text-[10px] h-5">
+                <CardTitle className="text-lg leading-tight">{issue.title}</CardTitle>
+                <Badge variant={issue.severity as any} className="capitalize text-[9px] h-4.5 px-1.5 font-bold">
                   {issue.severity}
                 </Badge>
-                <Badge variant="outline" className="capitalize text-[10px] h-5 border-white/10 text-muted-foreground">
+                <Badge variant="outline" className="capitalize text-[9px] h-4.5 px-1.5 border-white/10 text-muted-foreground font-mono">
                   Confidence: {issue.confidence}
                 </Badge>
               </div>
-              <p className="text-sm text-muted-foreground line-clamp-1">{issue.file}:{issue.line}</p>
+              <p className="text-xs text-muted-foreground font-mono truncate">{issue.file}:{issue.line}</p>
             </div>
           </div>
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-transform duration-200">
@@ -318,7 +403,7 @@ function IssueCard({ issue, isExpanded, onToggle }: { issue: ReviewFinding, isEx
 
             <div className="rounded-lg bg-primary/5 border border-primary/10 p-4">
               <div className="flex items-center gap-2 mb-2"><AlertTriangle className="h-4 w-4 text-primary" /><h4 className="text-xs font-bold uppercase tracking-wide text-primary">Senior Fix Recommendation</h4></div>
-              <p className="text-sm text-foreground/90 leading-relaxed font-mono">{issue.recommendation}</p>
+              <p className="text-sm text-foreground/90 leading-relaxed font-mono whitespace-pre-wrap">{issue.recommendation}</p>
             </div>
           </CardContent>
         </motion.div>

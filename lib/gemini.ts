@@ -222,7 +222,7 @@ export async function runAIReview(
   diffContent: string, 
   cacheName?: string, 
   retries: number = 1
-): Promise<ReviewResponse> {
+): Promise<ReviewResponse & { retryCount: number }> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "your_gemini_key_here") {
     throw new Error("Missing GEMINI_API_KEY environment variable.");
@@ -241,6 +241,7 @@ export async function runAIReview(
   ].filter((v, i, a) => a.indexOf(v) === i);
 
   let lastError: any;
+  let totalRetries = 0;
   
   for (let modelId of modelIdsToTry) {
     modelId = modelId.replace("models/", "");
@@ -251,7 +252,6 @@ export async function runAIReview(
         
         let model;
         if (cacheName) {
-          // Note: createCachedContent also requires the modelId to be one that supports it
           console.log(`[GEMINI] Using context cache: ${cacheName}`);
           model = genAI.getGenerativeModelFromCachedContent({ name: cacheName } as any);
         } else {
@@ -276,7 +276,7 @@ export async function runAIReview(
         const parsedResponse: ReviewResponse = JSON.parse(text);
         console.log(`[GEMINI] SUCCESS with ${modelId}. Found ${parsedResponse.bugs.length + parsedResponse.security.length + parsedResponse.performance.length + parsedResponse.codeSmells.length} issues.`);
         
-        return parsedResponse;
+        return { ...parsedResponse, retryCount: totalRetries };
 
       } catch (error: any) {
         lastError = error;
@@ -286,10 +286,11 @@ export async function runAIReview(
 
         if (isNotFound) {
           console.warn(`[GEMINI] Model ID ${modelId} not found. Trying next fallback...`);
-          break; // Move to next modelId
+          break; 
         }
         
         if (isRateLimit && attempt < retries) {
+          totalRetries++;
           const delay = 5000 + (attempt * 5000);
           console.warn(`[GEMINI] Rate limit on ${modelId}. Retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -297,7 +298,7 @@ export async function runAIReview(
         }
         
         console.error(`[GEMINI] Error with ${modelId}:`, error.message);
-        break; // Try next model ID
+        break; 
       }
     }
   }
