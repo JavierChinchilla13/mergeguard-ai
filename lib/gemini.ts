@@ -118,36 +118,41 @@ const reviewSchema: ResponseSchema = {
   required: ["summary", "bugs", "security", "performance", "codeSmells", "suggestions"]
 };
 
-const SYSTEM_PROMPT = `You are MergeGuard AI, a senior software engineer and security researcher. 
-Your task is to conduct a professional, deep-dive review of a GitHub Pull Request diff.
+const SYSTEM_PROMPT = `You are MergeGuard AI, a senior security researcher and engineer. Review the following GitHub PR diff.
+Report meaningful findings for:
+1. BUGS: Logic errors, race conditions, async safety.
+2. SECURITY: OWASP Top 10, secrets exposure, unsafe validation.
+3. PERFORMANCE: Inefficiency, memory leaks, slow queries.
+4. CODE QUALITY: Solid/DRY violations, dead code, poor architecture.
 
-Focus on:
-1. BUGS: Logical errors, race conditions, null pointers, off-by-one errors.
-2. SECURITY: XSS, SQL injection, CSRF, insecure authentication, secrets exposure (API keys, etc.), unsafe async handling.
-3. PERFORMANCE: Inefficient algorithms, unnecessary re-renders (React), large memory allocations, slow queries.
-4. CODE SMELLS: Dead code, deep nesting, poor naming, violations of DRY/SOLID principles.
-5. MAINTAINABILITY: Readability, documentation, complexity.
+Rules:
+- High-signal feedback only.
+- Cite specific file/line.
+- Provide actionable fix recommendation and code snippet.
+- Be concise.`;
 
-Guidelines:
-- Provide high-signal, actionable feedback.
-- If no meaningful issues are found in a category, return an empty array.
-- Cite specific filenames and line numbers.
-- For each finding, provide a clear 'recommendation' on how to fix it.
-- Include the 'codeSnippet' showing the problematic area.
-- Be objective and professional. Avoid generic praise.`;
+/**
+ * Helper to get the model name from environment or fallback
+ */
+export function getModelName(): string {
+  let modelName = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  return modelName.replace("models/", "");
+}
 
 /**
  * Initialize Gemini Client
  */
-export function getGeminiModel() {
+export function getGeminiModel(modelId?: string) {
   const apiKey = process.env.GEMINI_API_KEY;
+  const modelName = modelId || getModelName();
+  
   if (!apiKey || apiKey === "your_gemini_key_here") {
     throw new Error("Missing GEMINI_API_KEY environment variable.");
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
   return genAI.getGenerativeModel({
-    model: "gemini-1.5-flash",
+    model: modelName,
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: reviewSchema,
@@ -157,47 +162,91 @@ export function getGeminiModel() {
 }
 
 /**
- * AI Review Pipeline Service
+ * AI Review Pipeline Service with Retry Logic and ID Fallbacks
  */
-export async function runAIReview(diffContent: string, cacheName?: string): Promise<ReviewResponse> {
-  try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === "your_gemini_key_here") {
-      throw new Error("Missing GEMINI_API_KEY environment variable.");
-    }
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    let model;
-
-    if (cacheName) {
-      console.log(`[GEMINI] Using context cache: ${cacheName}`);
-      model = genAI.getGenerativeModelFromCachedContent({ name: cacheName } as any);
-    } else {
-      model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: reviewSchema,
-        },
-        systemInstruction: SYSTEM_PROMPT,
-      });
-    }
-    
-    console.log(`[GEMINI] Starting AI review analysis...`);
-    const prompt = cacheName 
-      ? "Analyze the cached Pull Request diff and provide a structured review in JSON format."
-      : `Analyze the following Pull Request diff and provide a structured review in JSON format:\n\n${diffContent}`;
-    
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    
-    const parsedResponse: ReviewResponse = JSON.parse(text);
-    console.log(`[GEMINI] Review complete. Found ${parsedResponse.bugs.length + parsedResponse.security.length + parsedResponse.performance.length + parsedResponse.codeSmells.length} issues.`);
-    
-    return parsedResponse;
-  } catch (error) {
-    console.error(`[GEMINI] Error during AI review:`, error);
-    throw error;
+export async function runAIReview(
+  diffContent: string, 
+  cacheName?: string, 
+  retries: number = 1
+): Promise<ReviewResponse> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === "your_gemini_key_here") {
+    throw new Error("Missing GEMINI_API_KEY environment variable.");
   }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  
+  // Exhaustive list of model IDs based on your specific API key's availability
+  const modelIdsToTry = [
+    getModelName(),
+    "gemini-3.5-flash",
+    "gemini-2.0-flash",
+    "gemini-flash-latest",
+    "gemini-1.5-flash",
+    "gemini-3.1-flash-lite"
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
+  let lastError: any;
+  
+  for (let modelId of modelIdsToTry) {
+    modelId = modelId.replace("models/", "");
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        console.log(`[GEMINI] Attempting analysis with ID: ${modelId} (Attempt ${attempt + 1})`);
+        
+        let model;
+        if (cacheName) {
+          // Note: createCachedContent also requires the modelId to be one that supports it
+          console.log(`[GEMINI] Using context cache: ${cacheName}`);
+          model = genAI.getGenerativeModelFromCachedContent({ name: cacheName } as any);
+        } else {
+          model = genAI.getGenerativeModel({
+            model: modelId,
+            generationConfig: {
+              responseMimeType: "application/json",
+              responseSchema: reviewSchema,
+            },
+            systemInstruction: SYSTEM_PROMPT,
+          });
+        }
+        
+        const prompt = cacheName 
+          ? "Analyze the cached Pull Request diff and provide a structured review in JSON format."
+          : `Analyze the following Pull Request diff and provide a structured review in JSON format:\n\n${diffContent}`;
+        
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const text = response.text();
+        
+        const parsedResponse: ReviewResponse = JSON.parse(text);
+        console.log(`[GEMINI] SUCCESS with ${modelId}. Found ${parsedResponse.bugs.length + parsedResponse.security.length + parsedResponse.performance.length + parsedResponse.codeSmells.length} issues.`);
+        
+        return parsedResponse;
+
+      } catch (error: any) {
+        lastError = error;
+        const errorMsg = error.message?.toLowerCase() || "";
+        const isRateLimit = errorMsg.includes("429") || error.status === 429 || errorMsg.includes("quota");
+        const isNotFound = errorMsg.includes("404") || error.status === 404 || errorMsg.includes("not found");
+
+        if (isNotFound) {
+          console.warn(`[GEMINI] Model ID ${modelId} not found. Trying next fallback...`);
+          break; // Move to next modelId
+        }
+        
+        if (isRateLimit && attempt < retries) {
+          const delay = 5000 + (attempt * 5000);
+          console.warn(`[GEMINI] Rate limit on ${modelId}. Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        console.error(`[GEMINI] Error with ${modelId}:`, error.message);
+        break; // Try next model ID
+      }
+    }
+  }
+  
+  throw lastError || new Error("AI review failed. No compatible Gemini models found for this API key.");
 }

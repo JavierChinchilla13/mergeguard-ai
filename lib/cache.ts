@@ -1,5 +1,5 @@
 import { GoogleAICacheManager } from "@google/generative-ai/server";
-import { getGeminiModel } from "./gemini";
+import { getModelName } from "./gemini";
 
 /**
  * Utility for verifiable Gemini Context Caching
@@ -17,7 +17,6 @@ export interface CacheMetadata {
  */
 export class ContextCacheManager {
   private cacheManager: GoogleAICacheManager;
-  private modelName = "models/gemini-1.5-flash-001"; // Specific version required for caching
 
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -25,6 +24,17 @@ export class ContextCacheManager {
       throw new Error("Missing GEMINI_API_KEY for cache manager.");
     }
     this.cacheManager = new GoogleAICacheManager(apiKey);
+  }
+
+  /**
+   * Helper to get the canonical model name for caching
+   */
+  private getCacheModelName(): string {
+    const baseModel = getModelName();
+    // Cache manager requires 'models/' prefix
+    // For 2.0-flash, we use a specific stable version for caching if needed
+    // However, the base model name usually works if prepended with models/
+    return baseModel.startsWith("models/") ? baseModel : `models/${baseModel}`;
   }
 
   /**
@@ -58,7 +68,7 @@ export class ContextCacheManager {
       
       // Create new cache with 1 hour TTL
       const cache = await this.cacheManager.create({
-        model: this.modelName,
+        model: this.getCacheModelName(),
         displayName: displayName,
         contents: [
           {

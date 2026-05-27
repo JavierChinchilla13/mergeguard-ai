@@ -8,19 +8,31 @@ import { PRInput } from "@/components/sections/pr-input"
 import { ResultsSection } from "@/components/sections/results-section"
 import { MOCK_REVIEW_RESULTS } from "@/lib/mock-data"
 import { motion, AnimatePresence } from "framer-motion"
+import { AlertCircle } from "lucide-react"
 
 export default function LandingPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [prData, setPrData] = useState<any>(null)
+  
+  // Use a ref as a mutex to prevent race conditions during state updates
+  const analysisLock = React.useRef(false)
 
   const handleAnalyze = async (url: string) => {
-    setIsAnalyzing(true)
-    setShowResults(false)
-    setError(null)
+    if (analysisLock.current || isAnalyzing) {
+      console.warn("[FRONTEND] Analysis already in progress (Locked). Ignoring duplicate request.");
+      return;
+    }
+
+    console.log(`[ANALYZE START] [${new Date().toISOString()}] URL: ${url}`);
+    analysisLock.current = true;
+    setIsAnalyzing(true);
+    setShowResults(false);
+    setError(null);
 
     try {
+      console.log(`[FRONTEND] Sending POST request to /api/analyze-pr...`);
       const response = await fetch("/api/analyze-pr", {
         method: "POST",
         headers: {
@@ -38,6 +50,7 @@ export default function LandingPage() {
       setPrData(data)
       setIsAnalyzing(false)
       setShowResults(true)
+      analysisLock.current = false;
       
       // Scroll to results
       setTimeout(() => {
@@ -46,6 +59,7 @@ export default function LandingPage() {
     } catch (err: any) {
       setIsAnalyzing(false)
       setError(err.message)
+      analysisLock.current = false;
       console.error("Analysis Error:", err)
     }
   }
@@ -64,8 +78,16 @@ export default function LandingPage() {
         {error && (
           <div className="container max-w-3xl pb-12">
             <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive">
-              <p className="font-semibold">Analysis Failed</p>
+              <div className="flex items-center gap-2 mb-1">
+                <AlertCircle className="h-4 w-4" />
+                <p className="font-semibold">Analysis Failed</p>
+              </div>
               <p className="text-sm opacity-90">{error}</p>
+              {error.includes("quota exceeded") && (
+                <p className="mt-2 text-xs opacity-70">
+                  The free tier of Gemini has a strict rate limit. Please wait about 30-60 seconds and try again.
+                </p>
+              )}
             </div>
           </div>
         )}

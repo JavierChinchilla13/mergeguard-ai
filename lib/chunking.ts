@@ -17,24 +17,24 @@ const IGNORED_PATTERNS = [
   'build/',
   '.next/',
   'public/',
-  '*.min.js',
-  '*.min.css',
-  '*.map',
-  '*.svg',
-  '*.png',
-  '*.jpg',
-  '*.jpeg',
-  '*.gif',
-  '*.ico',
-  '*.pdf',
-  '*.bin',
+  '.ico',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.svg',
+  '.pdf',
+  '.bin',
+  '.min.js',
+  '.min.css',
+  '.map',
 ];
 
 const PRIORITY_PATTERNS = [
   'src/auth/',
+  'app/api/',
   'src/api/',
   'src/services/',
-  'app/api/',
   'server/',
   'models/',
   'controllers/',
@@ -46,8 +46,7 @@ const PRIORITY_PATTERNS = [
 ];
 
 /**
- * Estimates token count based on character count (rough approximation)
- * Gemini models use ~4 chars per token on average for code
+ * Estimates token count based on character count
  */
 export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -59,34 +58,34 @@ export function estimateTokens(text: string): number {
 export function filterAndPrioritizeFiles(files: any[]): any[] {
   // 1. Filter out ignored files
   const filtered = files.filter(file => {
-    return !IGNORED_PATTERNS.some(pattern => {
-      if (pattern.startsWith('*.')) {
-        return file.filename.endsWith(pattern.substring(1));
-      }
+    const isIgnored = IGNORED_PATTERNS.some(pattern => {
+      if (pattern.startsWith('.')) return file.filename.endsWith(pattern);
       return file.filename.includes(pattern);
     });
+    if (isIgnored) console.log(`[CHUNKING] Skipped noise file: ${file.filename}`);
+    return !isIgnored;
   });
 
   // 2. Sort by priority
   return filtered.sort((a, b) => {
-    const aPriority = PRIORITY_PATTERNS.findIndex(pattern => a.filename.includes(pattern));
-    const bPriority = PRIORITY_PATTERNS.findIndex(pattern => b.filename.includes(pattern));
+    const aPriority = PRIORITY_PATTERNS.findIndex(p => a.filename.includes(p));
+    const bPriority = PRIORITY_PATTERNS.findIndex(p => b.filename.includes(p));
 
-    // If both are not in priority list, keep original order
     if (aPriority === -1 && bPriority === -1) return 0;
-    // If one is not in priority list, it goes to the end
     if (aPriority === -1) return 1;
     if (bPriority === -1) return -1;
-    
-    // Both are in priority list, lower index = higher priority
     return aPriority - bPriority;
   });
 }
 
 /**
- * Chunks PR files into batches that fit within token limits
+ * Chunks PR files and truncates large patches to save tokens
  */
-export function chunkFiles(files: any[], maxTokensPerChunk: number = 50000): ChunkedDiff[] {
+export function chunkFiles(
+  files: any[], 
+  maxTokensPerChunk: number = 30000, // Reduced for free tier reliability
+  maxCharsPerFile: number = 12000   // ~3000 tokens max per file
+): ChunkedDiff[] {
   const chunks: ChunkedDiff[] = [];
   let currentChunkFiles: string[] = [];
   let currentChunkContent = "";
@@ -95,12 +94,16 @@ export function chunkFiles(files: any[], maxTokensPerChunk: number = 50000): Chu
   for (const file of files) {
     if (!file.patch) continue;
 
+    let patch = file.patch;
+    if (patch.length > maxCharsPerFile) {
+      console.log(`[CHUNKING] Truncating large patch: ${file.filename} (${patch.length} chars)`);
+      patch = patch.substring(0, maxCharsPerFile) + "\n\n[... PATCH TRUNCATED FOR TOKEN LIMITS ...]";
+    }
+
     const fileHeader = `\n--- FILE: ${file.filename} ---\n`;
-    const fileContent = fileHeader + file.patch;
+    const fileContent = fileHeader + patch;
     const fileTokens = estimateTokens(fileContent);
 
-    // If a single file is larger than the limit, we still include it but it might be truncated by the model
-    // or we could split it further. For now, we keep it as one unit.
     if (currentTokenCount + fileTokens > maxTokensPerChunk && currentChunkFiles.length > 0) {
       chunks.push({
         files: currentChunkFiles,
@@ -124,11 +127,6 @@ export function chunkFiles(files: any[], maxTokensPerChunk: number = 50000): Chu
       tokenCount: currentTokenCount,
     });
   }
-
-  console.log(`[CHUNKING] Split PR into ${chunks.length} chunks.`);
-  chunks.forEach((chunk, i) => {
-    console.log(`  Chunk ${i + 1}: ${chunk.files.length} files, ~${chunk.tokenCount} tokens`);
-  });
 
   return chunks;
 }
