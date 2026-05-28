@@ -118,6 +118,18 @@ export default function HowItWorks() {
                 detail="Maintainability issues, dead code, and standard pattern violations."
                 example="Duplicate logic found across three different service modules."
               />
+              <AnalysisCategory 
+                icon={<Layers className="text-purple-500" />} 
+                title="Architecture" 
+                detail="SOLID violations, boundary leakage, and structural debt."
+                example="Circular dependency detected between domain and UI layers."
+              />
+              <AnalysisCategory 
+                icon={<Info className="text-green-500" />} 
+                title="Suggestions" 
+                detail="Non-critical naming, readability, and modern JS pattern tips."
+                example="Suggesting optional chaining (?.) for deep object traversal."
+              />
             </div>
           </section>
 

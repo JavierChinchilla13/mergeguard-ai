@@ -47,6 +47,8 @@ merge-guard/
 - **Enhanced Observability:** Added a compact metadata bar and dedicated "Observability" tab with latency instrumentation and decision logs.
 - **Technical Terminal:** Implemented a live, auto-scrolling system log with granular technical feedback (Cache states, Chunks, Prioritization).
 - **Technical Documentation:** Created a comprehensive "How It Works" page explaining chunking, hashing, and AI reasoning strategies.
+- **Improved AI Core:** Added "Architecture" and "Suggestions" categories to the analysis core for more comprehensive reviews.
+- **UI Simplification:** Streamlined the Navbar and Footer by removing redundant links and branding for a more focused user experience.
 - **Markdown Preview Flow:** Interactive review preview and clipboard support before GitHub posting.
 - **Hardened Pipeline:** Robust error handling for empty PRs, rate limits, and detailed cache invalidation reasoning.
 
