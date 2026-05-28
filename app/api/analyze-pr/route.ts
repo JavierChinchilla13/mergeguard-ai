@@ -55,23 +55,33 @@ export async function POST(req: NextRequest) {
     const allFiles: PRFile[] = await ghResponse.json();
     const githubLatency = Date.now() - ghStartTime;
 
+    if (allFiles.length === 0) {
+      return NextResponse.json({ error: "The Pull Request contains no changed files." }, { status: 400 });
+    }
+
     // 3. Generate content hash for cache verification
     const contentToHash = allFiles.map(f => f.filename + (f.patch || "")).join("|");
     const prHash = reviewCache.generateHash(contentToHash);
 
     // 4. Check Advanced Server Cache
-    const { data: cachedResult, status: cacheStatus } = reviewCache.get(url, prHash);
+    const { data: cachedResult, status: cacheStatus, invalidationReason } = reviewCache.get(url, prHash);
 
-    if (cachedResult) {
-      console.log(`[API CACHE ${cacheStatus}] [ID: ${requestId}] Returning verified cached results for: ${url}`);
+    if (cachedResult && cacheStatus === 'hit') {
+      console.log(`[API CACHE HIT] [ID: ${requestId}] Returning verified cached results for: ${url}`);
       return NextResponse.json({
         ...cachedResult,
-        cacheStatus
+        cacheStatus: 'hit'
       });
     }
 
     // 5. Run AI Review Pipeline (Enhanced with observability)
-    const { review, metadata } = await executeAIReviewPipeline(url, allFiles, githubLatency);
+    const { review, metadata } = await executeAIReviewPipeline(
+      url, 
+      allFiles, 
+      githubLatency, 
+      cacheStatus as any,
+      invalidationReason
+    );
 
     // 6. Construct Final Response
     const finalResponse = {

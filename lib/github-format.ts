@@ -13,6 +13,7 @@ export function formatGitHubComment(review: ReviewResponse, modelName: string): 
     { label: "🔐 Security", key: "security" },
     { label: "⚡ Performance", key: "performance" },
     { label: "🌬️ Code Smells", key: "codeSmells" },
+    { label: "🏛️ Architecture", key: "architectureConcerns" },
     { label: "💡 Suggestions", key: "suggestions" },
   ];
 

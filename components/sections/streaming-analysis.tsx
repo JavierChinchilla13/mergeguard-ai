@@ -100,37 +100,57 @@ export function StreamingAnalysis({ logs, currentStage, progress, duration }: St
             </div>
 
             {/* Terminal Panel */}
-            <div className="md:col-span-2 bg-black/60 p-6">
+            <div className="md:col-span-2 bg-[#050505] p-6 relative">
+              <div className="absolute top-0 right-0 p-2">
+                <div className="flex items-center gap-2 px-2 py-1 rounded bg-white/5 border border-white/10">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest">Live Stream</span>
+                </div>
+              </div>
+
               <div 
                 ref={scrollRef}
-                className="h-[300px] overflow-y-auto space-y-2 font-mono text-[11px] scrollbar-none"
+                className="h-[340px] overflow-y-auto space-y-1.5 font-mono text-[11px] scrollbar-none pr-2"
               >
                 <AnimatePresence mode="popLayout">
                   {logs.map((log, idx) => (
                     <motion.div
                       key={log.timestamp + idx}
-                      initial={{ opacity: 0, x: -5 }}
-                      animate={{ opacity: 1, x: 0 }}
+                      initial={{ opacity: 0, x: -5, filter: "blur(4px)" }}
+                      animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
                       className="flex items-start gap-3 group"
                     >
-                      <span className="text-white/20 select-none shrink-0">[{new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
+                      <span className="text-white/10 select-none shrink-0 tabular-nums">
+                        {new Date(log.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </span>
                       <span className={cn(
-                        "font-bold uppercase text-[9px] mt-0.5 px-1.5 py-0.5 rounded leading-none whitespace-nowrap border shrink-0",
+                        "font-bold uppercase text-[8px] mt-0.5 px-1 rounded leading-none whitespace-nowrap border shrink-0 py-0.5",
                         getLogTypeStyles(log.type)
                       )}>
                         {log.type}
                       </span>
                       <span className={cn(
-                        "break-words leading-relaxed",
-                        log.type === 'error' ? "text-red-400" : "text-foreground/80"
+                        "break-all leading-normal",
+                        log.type === 'error' ? "text-red-400 font-bold" : 
+                        log.type === 'success' ? "text-green-400" :
+                        "text-zinc-300"
                       )}>{log.message}</span>
                     </motion.div>
                   ))}
                 </AnimatePresence>
                 {progress < 100 && (
-                  <div className="flex items-center gap-2 text-primary animate-pulse mt-1">
-                    <ChevronRight className="h-4 w-4" />
-                    <div className="h-1.5 w-1 bg-primary" />
+                  <div className="flex items-center gap-2 text-primary mt-2">
+                    <span className="animate-pulse">_</span>
+                    <div className="flex gap-1">
+                      {[1, 2, 3].map(i => (
+                        <motion.div
+                          key={i}
+                          animate={{ opacity: [0.2, 1, 0.2] }}
+                          transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                          className="h-1 w-1 bg-primary rounded-full"
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

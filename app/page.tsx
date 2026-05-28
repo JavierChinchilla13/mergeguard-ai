@@ -8,7 +8,7 @@ import { PRInput } from "@/components/sections/pr-input"
 import { ResultsSection } from "@/components/sections/results-section"
 import { Button } from "@/components/ui/button"
 import { motion, AnimatePresence } from "framer-motion"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Bug, Database, Layers } from "lucide-react"
 import { StreamingAnalysis, AnalysisLog } from "@/components/sections/streaming-analysis"
 
 const ANALYSIS_STAGES = [
@@ -37,13 +37,16 @@ export default function LandingPage() {
   const analysisLock = React.useRef(false)
   const timerRef = React.useRef<NodeJS.Timeout | null>(null)
 
+  const [lastUrl, setLastUrl] = useState("")
+
   const addLog = (message: string, type: AnalysisLog['type'] = 'info') => {
     setAnalysisLogs(prev => [...prev, { message, type, timestamp: Date.now() }]);
   }
 
   const handleAnalyze = async (url: string) => {
     if (analysisLock.current || isAnalyzing) return;
-
+    
+    setLastUrl(url);
     analysisLock.current = true;
     setIsAnalyzing(true);
     setShowResults(false);
@@ -58,13 +61,13 @@ export default function LandingPage() {
     }, 100);
 
     try {
-      addLog(`[START] Initializing MergeGuard pipeline for ${url}`, 'info');
+      addLog(`[START] Initializing MergeGuard pipeline for PR`, 'info');
       
       // Stage 1: Fetching
       await new Promise(r => setTimeout(r, 600));
       setCurrentStage(ANALYSIS_STAGES[1]);
       setProgress(12);
-      addLog("[FETCH] Requesting Pull Request metadata...", 'github');
+      addLog("Fetching PR metadata from GitHub API...", 'github');
 
       const response = await fetch("/api/analyze-pr", {
         method: "POST",
@@ -75,54 +78,56 @@ export default function LandingPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "GitHub API Failure");
 
-      addLog(`[FETCH] Retrieved ${data.filesCount} changed files from GitHub.`, 'success');
+      addLog(`Successfully retrieved ${data.filesCount} changed files.`, 'success');
 
       // Stage 2: Parsing & Prioritizing
       setCurrentStage(ANALYSIS_STAGES[2]);
       setProgress(28);
-      addLog("[FILTER] Running high-precision file prioritization...", 'info');
+      addLog("Running high-precision file prioritization...", 'info');
       
-      const prioritizedCount = data.metadata?.insights?.filter((i: any) => i.decision === 'prioritized').length || 0;
-      const skippedCount = data.metadata?.insights?.filter((i: any) => i.decision === 'skipped').length || 0;
+      const insights = data.metadata?.insights || [];
+      const prioritized = insights.filter((i: any) => i.decision === 'prioritized');
+      const skipped = insights.filter((i: any) => i.decision === 'skipped');
       
-      if (skippedCount > 0) addLog(`[FILTER] Auto-skipped ${skippedCount} low-signal files (lockfiles/assets).`, 'info');
-      if (prioritizedCount > 0) addLog(`[FILTER] Prioritized ${prioritizedCount} high-risk logic files for deep analysis.`, 'info');
+      if (skipped.length > 0) addLog(`Auto-skipped ${skipped.length} generated/non-source files.`, 'info');
+      prioritized.forEach((p: any) => addLog(`Prioritized ${p.filename} (${p.reason})`, 'ai'));
 
-      if (data.cacheStatus === 'HIT') {
-        addLog("[CACHE HIT] SHA-256 content match. Reusing previous analysis results.", 'cache');
-      } else if (data.cacheStatus === 'INVALIDATED') {
-        addLog("[CACHE INVALIDATED] PR content has changed. Re-running AI pipeline.", 'info');
+      if (data.cacheStatus === 'hit') {
+        addLog("SHA-256 content match. Reusing verified cached results.", 'cache');
+      } else if (data.cacheStatus === 'invalidated') {
+        addLog(`Cache invalidated: ${data.metadata?.cacheInvalidationReason || "PR content changed"}.`, 'info');
+        addLog("Initializing fresh AI reasoning pipeline...", 'info');
       } else {
-        addLog("[CACHE MISS] No existing analysis found for this PR state.", 'info');
+        addLog("No existing cache found. Starting analysis.", 'info');
       }
 
       await new Promise(r => setTimeout(r, 500));
       setCurrentStage(ANALYSIS_STAGES[3]);
       setProgress(42);
-      addLog(`[CHUNK] Segmented diff into ${data.metadata?.chunkCount || 1} optimized AI batches (~${(data.metadata?.totalTokens || 0).toLocaleString()} tokens).`, 'info');
+      addLog(`Segmented diff into ${data.metadata?.chunkCount || 1} batches (~${(data.metadata?.totalTokens || 0).toLocaleString()} tokens).`, 'info');
 
       // Stage 3: AI Reasoning
       setCurrentStage(ANALYSIS_STAGES[4]);
       setProgress(58);
-      addLog(`[AI] Initializing reasoning core with ${data.metadata?.model}...`, 'ai');
+      addLog(`Analyzing logic bugs using ${data.metadata?.model}...`, 'ai');
       
-      if (data.review?.bugs?.length > 0) addLog(`[BUG] Analysis found ${data.review.bugs.length} potential logic flaws.`, 'bug');
+      if (data.review?.bugs?.length > 0) addLog(`Detected ${data.review.bugs.length} potential logic flaws.`, 'bug');
 
       await new Promise(r => setTimeout(r, 800));
       setCurrentStage(ANALYSIS_STAGES[5]);
       setProgress(72);
-      addLog("[AI] Performing security vulnerability scan...", 'security');
-      if (data.review?.security?.length > 0) addLog(`[SECURITY] High-impact alert in ${data.review.security[0].file}`, 'security');
+      addLog("Performing deep security vulnerability scan...", 'security');
+      if (data.review?.security?.length > 0) addLog(`Security alert flagged in ${data.review.security[0].file}`, 'security');
 
       await new Promise(r => setTimeout(r, 800));
       setCurrentStage(ANALYSIS_STAGES[6]);
       setProgress(86);
-      addLog("[AI] Analyzing performance and scalability bottlenecks...", 'perf');
+      addLog("Checking performance and scalability gaps...", 'perf');
 
       await new Promise(r => setTimeout(r, 600));
       setCurrentStage(ANALYSIS_STAGES[7]);
       setProgress(100);
-      addLog("[SUCCESS] Review finalized. Building report...", 'success');
+      addLog("Review finalized. Aggregating results.", 'success');
 
       setPrData(data);
       
@@ -138,7 +143,7 @@ export default function LandingPage() {
 
     } catch (err: any) {
       if (timerRef.current) clearInterval(timerRef.current);
-      addLog(`[ERROR] ${err.message}`, 'error');
+      addLog(`[CRITICAL] ${err.message}`, 'error');
       setIsAnalyzing(false);
       setError(err.message);
       analysisLock.current = false;
@@ -194,7 +199,7 @@ export default function LandingPage() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      onClick={() => handleAnalyze(prData?.url || "")}
+                      onClick={() => handleAnalyze(lastUrl)}
                       className="h-8 text-xs font-bold border-destructive/20 hover:bg-destructive hover:text-white"
                     >
                       Retry Analysis
@@ -237,18 +242,18 @@ export default function LandingPage() {
             <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
               <FeatureCard 
                 title="Deep Static Analysis"
-                description="Our AI engine performs multi-pass analysis to identify complex logical vulnerabilities and performance bottlenecks."
-                icon="🔍"
+                description="Multi-pass logic audit detecting race conditions, N+1 queries, and security vulnerabilities before they reach production."
+                icon={<Bug className="h-6 w-6 text-primary" />}
               />
               <FeatureCard 
-                title="Engineering Standards"
-                description="Automatically enforce team-wide patterns and structural integrity across your entire codebase."
-                icon="📐"
+                title="Content-Aware Caching"
+                description="SHA-256 deterministic hashing ensures instant results for unchanged PRs while minimizing redundant AI compute."
+                icon={<Database className="h-6 w-6 text-primary" />}
               />
               <FeatureCard 
-                title="Open Intelligence"
-                description="A transparent analysis engine built on top of state-of-the-art LLMs, fine-tuned for precise code reasoning."
-                icon="🧠"
+                title="Intelligent Chunking"
+                description="Proprietary diff segmentation pipeline optimized for large-scale enterprise PRs exceeding standard context limits."
+                icon={<Layers className="h-6 w-6 text-primary" />}
               />
             </div>
           </section>
@@ -260,12 +265,14 @@ export default function LandingPage() {
   )
 }
 
-function FeatureCard({ title, description, icon }: { title: string, description: string, icon: string }) {
+function FeatureCard({ title, description, icon }: { title: string, description: string, icon: React.ReactNode }) {
   return (
-    <div className="group rounded-2xl border border-border/40 bg-card/30 p-8 transition-all hover:border-primary/50 hover:bg-card/50 shadow-sm">
-      <div className="mb-4 text-4xl">{icon}</div>
-      <h3 className="mb-2 text-xl font-bold">{title}</h3>
-      <p className="text-muted-foreground leading-relaxed">
+    <div className="group rounded-xl border border-border/40 bg-card/30 p-8 transition-all hover:border-primary/50 hover:bg-card/50 shadow-sm">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+        {icon}
+      </div>
+      <h3 className="mb-2 text-lg font-bold">{title}</h3>
+      <p className="text-sm text-muted-foreground leading-relaxed">
         {description}
       </p>
     </div>

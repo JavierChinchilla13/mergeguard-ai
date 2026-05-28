@@ -42,6 +42,14 @@ merge-guard/
 
 ## ✨ Key Features Implemented
 
+### 0. Production-Grade UI/UX & Observability (May 2026 Update)
+- **Technical Dashboard:** Transformed the UI into a high-density engineering tool inspired by GitHub and Vercel.
+- **Enhanced Observability:** Added a compact metadata bar and dedicated "Observability" tab with latency instrumentation and decision logs.
+- **Technical Terminal:** Implemented a live, auto-scrolling system log with granular technical feedback (Cache states, Chunks, Prioritization).
+- **Technical Documentation:** Created a comprehensive "How It Works" page explaining chunking, hashing, and AI reasoning strategies.
+- **Markdown Preview Flow:** Interactive review preview and clipboard support before GitHub posting.
+- **Hardened Pipeline:** Robust error handling for empty PRs, rate limits, and detailed cache invalidation reasoning.
+
 ### 1. Engineering Observability (Production Ready)
 - **Analysis Metrics Dashboard:** A comprehensive statistics panel displaying total tokens, pipeline duration, and per-service latency (GitHub API vs. Gemini Reasoning).
 - **Developer Insights Log:** A detailed decision log that exposes why specific files were prioritized (e.g., "High-risk security logic") or skipped (e.g., "Generated lockfile").

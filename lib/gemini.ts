@@ -181,7 +181,8 @@ Rules:
 3. Framework-Aware: Tailor analysis to Next.js, React, Node.js, or detected stack best practices.
 4. Professional Tone: Be critical but objective. Use 'technicalReasoning' for deep dives.
 5. Acknowledge Quality: Use 'positiveFeedback' for excellent patterns.
-6. Confidence Scoring: Assign 'confidence' (high/medium/low) and 'severity' (critical/high/medium/low).
+6. Suggestions: Always look for minor non-critical improvements (naming, readability, modern JS patterns) and put them in 'suggestions'.
+7. Confidence Scoring: Assign 'confidence' (high/medium/low) and 'severity' (critical/high/medium/low).
 
 Focus on what could break in a high-scale production environment.`;
 

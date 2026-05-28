@@ -9,7 +9,7 @@ export interface AnalysisMetadata {
   filesAnalyzed: number;
   filesSkipped: number;
   duration: number;
-  cacheStatus: 'hit' | 'miss';
+  cacheStatus: 'hit' | 'miss' | 'invalidated';
   cachedAt?: number;
   latencies: {
     github: number;
@@ -18,6 +18,7 @@ export interface AnalysisMetadata {
   };
   insights: FileInsight[];
   retryCount: number;
+  cacheInvalidationReason?: string;
 }
 
 /**
@@ -26,7 +27,9 @@ export interface AnalysisMetadata {
 export async function executeAIReviewPipeline(
   url: string,
   allFiles: any[],
-  githubLatency: number
+  githubLatency: number,
+  cacheStatus: 'hit' | 'miss' | 'invalidated' = 'miss',
+  cacheInvalidationReason?: string
 ): Promise<{ review: ReviewResponse; metadata: AnalysisMetadata }> {
   const startTime = Date.now();
   const chunkingStartTime = Date.now();
@@ -35,6 +38,35 @@ export async function executeAIReviewPipeline(
   const { filtered: relevantFiles, insights } = filterAndPrioritizeFiles(allFiles);
   const skippedCount = allFiles.length - relevantFiles.length;
   
+  if (relevantFiles.length === 0) {
+    return {
+      review: {
+        summary: "No source files found to analyze. The PR may contain only ignored files (lockfiles, assets, etc.) or is empty.",
+        overallRating: "excellent",
+        bugs: [],
+        security: [],
+        performance: [],
+        codeSmells: [],
+        architectureConcerns: [],
+        suggestions: [],
+        positiveFeedback: ["PR contains only non-source files."]
+      },
+      metadata: {
+        model: getModelName(),
+        totalTokens: 0,
+        chunkCount: 0,
+        filesAnalyzed: 0,
+        filesSkipped: skippedCount,
+        duration: Date.now() - startTime,
+        cacheStatus,
+        cacheInvalidationReason,
+        latencies: { github: githubLatency, ai: 0, chunking: Date.now() - chunkingStartTime },
+        insights,
+        retryCount: 0
+      }
+    };
+  }
+
   // 2. Chunking
   const chunks = chunkFiles(relevantFiles);
   const totalTokens = chunks.reduce((acc, c) => acc + c.tokenCount, 0);
@@ -54,7 +86,7 @@ export async function executeAIReviewPipeline(
     positiveFeedback: []
   };
 
-  const CHUNK_PROCESS_LIMIT = 1; 
+  const CHUNK_PROCESS_LIMIT = 2; // Increased for better coverage
   const chunksToProcess = chunks.slice(0, CHUNK_PROCESS_LIMIT);
   
   let aiTotalLatency = 0;
@@ -83,7 +115,7 @@ export async function executeAIReviewPipeline(
       mergedReview.summary = chunkResult.summary;
       mergedReview.overallRating = chunkResult.overallRating;
     } else {
-      mergedReview.summary += `\n\n[Chunk ${i + 1}]: ${chunkResult.summary}`;
+      mergedReview.summary += `\n\n[Additional Files Audit]: ${chunkResult.summary}`;
       const ratingsRank = { "critical_issues": 3, "needs_work": 2, "good": 1, "excellent": 0 };
       if (ratingsRank[chunkResult.overallRating] > ratingsRank[mergedReview.overallRating]) {
         mergedReview.overallRating = chunkResult.overallRating;
@@ -108,7 +140,8 @@ export async function executeAIReviewPipeline(
     filesAnalyzed: relevantFiles.length,
     filesSkipped: skippedCount,
     duration: totalDuration,
-    cacheStatus: 'miss',
+    cacheStatus,
+    cacheInvalidationReason,
     latencies: {
       github: githubLatency,
       ai: aiTotalLatency,

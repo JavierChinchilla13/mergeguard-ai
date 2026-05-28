@@ -25,11 +25,11 @@ class ReviewCacheService {
   /**
    * Gets a cached review with explicit status reporting
    */
-  get(url: string, currentHash: string): { data: any | null, status: CacheStatus, cachedAt?: number } {
+  get(url: string, currentHash: string): { data: any | null, status: string, cachedAt?: number, invalidationReason?: string } {
     const cached = this.cache.get(url);
     
     if (!cached) {
-      return { data: null, status: 'MISS' };
+      return { data: null, status: 'miss' };
     }
 
     const isExpired = Date.now() - cached.timestamp > this.TTL;
@@ -37,12 +37,12 @@ class ReviewCacheService {
 
     if (isExpired) {
       this.cache.delete(url);
-      return { data: null, status: 'EXPIRED' };
+      return { data: null, status: 'miss', invalidationReason: 'Cache TTL expired' };
     }
 
     if (!isHashMatch) {
       console.log(`[CACHE] Hash mismatch for ${url}. Old: ${cached.hash.slice(0,8)}, New: ${currentHash.slice(0,8)}`);
-      return { data: null, status: 'INVALIDATED' };
+      return { data: null, status: 'invalidated', invalidationReason: 'PR diff hash changed (new commits detected)' };
     }
 
     return {
@@ -54,7 +54,7 @@ class ReviewCacheService {
           cachedAt: cached.timestamp
         }
       },
-      status: 'HIT',
+      status: 'hit',
       cachedAt: cached.timestamp
     };
   }

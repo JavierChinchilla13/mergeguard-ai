@@ -18,24 +18,26 @@ export function Navbar() {
           </Link>
         </div>
         <nav className="hidden md:flex items-center gap-6">
-          <Link href="#how-it-works" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+          <Link href="/how-it-works" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
             How it Works
           </Link>
-          <Link href="#docs" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-            Documentation
-          </Link>
-          <Link href="#community" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-            Community
+          <Link href="https://github.com/JavierChinchilla13/mergeguard-ai/blob/main/CHANGES.md" target="_blank" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
+            Changelog
           </Link>
         </nav>
         <div className="flex items-center gap-4">
-          <Link href="https://github.com" target="_blank" rel="noreferrer">
+          <Link href="https://github.com/JavierChinchilla13/mergeguard-ai" target="_blank" rel="noreferrer">
             <Button variant="ghost" size="icon">
               <Globe className="h-5 w-5" />
               <span className="sr-only">GitHub</span>
             </Button>
           </Link>
-          <Button variant="outline" size="sm" className="hidden sm:flex">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="hidden sm:flex font-bold"
+            onClick={() => document.getElementById('analyze')?.scrollIntoView({ behavior: 'smooth' })}
+          >
             Run Analysis
           </Button>
         </div>

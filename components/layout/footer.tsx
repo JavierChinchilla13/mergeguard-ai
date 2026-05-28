@@ -19,34 +19,26 @@ export function Footer() {
             </p>
           </div>
           <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider">Engine</h3>
+            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Engine</h3>
             <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
-              <li><Link href="#" className="hover:text-foreground">Architecture</Link></li>
-              <li><Link href="#" className="hover:text-foreground">Security Model</Link></li>
-              <li><Link href="#" className="hover:text-foreground">Supported Languages</Link></li>
-              <li><Link href="#" className="hover:text-foreground">Benchmarks</Link></li>
+              <li><Link href="https://github.com/JavierChinchilla13/mergeguard-ai/blob/main/README.md#architecture-overview" className="hover:text-foreground">Architecture</Link></li>
+              <li><Link href="https://github.com/JavierChinchilla13/mergeguard-ai/blob/main/README.md#-core-features" className="hover:text-foreground">Security Model</Link></li>
+              <li><Link href="https://github.com/JavierChinchilla13/mergeguard-ai/blob/main/CHANGES.md" className="hover:text-foreground">Release Notes</Link></li>
             </ul>
           </div>
           <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider">Resources</h3>
+            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Resources</h3>
             <ul className="flex flex-col gap-2 text-sm text-muted-foreground">
-              <li><Link href="#" className="hover:text-foreground">Documentation</Link></li>
-              <li><Link href="#" className="hover:text-foreground">CLI Reference</Link></li>
-              <li><Link href="#" className="hover:text-foreground">API Docs</Link></li>
-              <li><Link href="#" className="hover:text-foreground">OSS Community</Link></li>
+              <li><Link href="https://github.com/JavierChinchilla13/mergeguard-ai" className="hover:text-foreground">Documentation</Link></li>
+              <li><Link href="https://github.com/JavierChinchilla13/mergeguard-ai/blob/main/AGENTS.md" className="hover:text-foreground">Agent Config</Link></li>
+              <li><Link href="https://github.com/JavierChinchilla13/mergeguard-ai" className="hover:text-foreground">GitHub Repository</Link></li>
             </ul>
           </div>
           <div>
-            <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider">Connect</h3>
+            <h3 className="mb-4 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Connect</h3>
             <div className="flex gap-4">
-              <Link href="#" className="text-muted-foreground hover:text-foreground">
+              <Link href="https://github.com/JavierChinchilla13/mergeguard-ai" className="text-muted-foreground hover:text-foreground transition-colors">
                 <Globe className="h-5 w-5" />
-              </Link>
-              <Link href="#" className="text-muted-foreground hover:text-foreground">
-                <MessageSquare className="h-5 w-5" />
-              </Link>
-              <Link href="#" className="text-muted-foreground hover:text-foreground">
-                <Users className="h-5 w-5" />
               </Link>
             </div>
           </div>

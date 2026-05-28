@@ -2,10 +2,12 @@
 
 import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Search, Loader2, AlertCircle, Shield, Zap, Bug } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 interface PRInputProps {
   onAnalyze: (url: string) => void
@@ -16,10 +18,12 @@ export function PRInput({ onAnalyze, isLoading }: PRInputProps) {
   const [url, setUrl] = useState("")
   const [error, setError] = useState<string | null>(null)
 
+  const githubPrRegex = /^https:\/\/github\.com\/[\w-]+\/[\w-]+\/pull\/\d+/
+  const isValid = githubPrRegex.test(url)
+
   const validateUrl = (value: string) => {
-    const githubPrRegex = /^https:\/\/github\.com\/[\w-]+\/[\w-]+\/pull\/\d+/
     if (!value) {
-      setError("Please enter a GitHub Pull Request URL")
+      setError(null)
       return false
     }
     if (!githubPrRegex.test(value)) {
@@ -46,24 +50,27 @@ export function PRInput({ onAnalyze, isLoading }: PRInputProps) {
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="https://github.com/facebook/react/pull/123"
-                className="h-14 pl-10 pr-32 text-base md:text-lg"
+                className="h-14 pl-10 pr-40 text-base font-mono"
                 value={url}
                 onChange={(e) => {
                   setUrl(e.target.value)
-                  if (error) validateUrl(e.target.value)
+                  validateUrl(e.target.value)
                 }}
                 disabled={isLoading}
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2">
                 <Button 
                   type="submit" 
-                  disabled={isLoading}
-                  className="h-10 px-6 font-semibold transition-all hover:scale-[1.02]"
+                  disabled={isLoading || !isValid}
+                  className={cn(
+                    "h-10 px-6 font-bold transition-all",
+                    isValid && !isLoading ? "bg-primary hover:scale-[1.02]" : "bg-muted text-muted-foreground"
+                  )}
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Analyzing
+                      Analyzing...
                     </>
                   ) : (
                     "Analyze PR"
@@ -78,7 +85,7 @@ export function PRInput({ onAnalyze, isLoading }: PRInputProps) {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="flex items-center gap-2 text-sm text-destructive"
+                  className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-destructive"
                 >
                   <AlertCircle className="h-4 w-4" />
                   {error}
@@ -89,9 +96,19 @@ export function PRInput({ onAnalyze, isLoading }: PRInputProps) {
         </CardContent>
       </Card>
       
-      <p className="mt-4 text-center text-sm text-muted-foreground">
-        Try our <span className="text-primary cursor-pointer hover:underline">demo repository</span> to see it in action.
-      </p>
+      <div className="mt-6 flex flex-col items-center gap-4">
+        <div className="flex gap-4">
+          <Badge variant="outline" className="gap-1.5 font-mono text-[10px] text-muted-foreground border-white/5 py-1">
+            <Shield className="h-3 w-3" /> Security Audit
+          </Badge>
+          <Badge variant="outline" className="gap-1.5 font-mono text-[10px] text-muted-foreground border-white/5 py-1">
+            <Zap className="h-3 w-3" /> Performance Check
+          </Badge>
+          <Badge variant="outline" className="gap-1.5 font-mono text-[10px] text-muted-foreground border-white/5 py-1">
+            <Bug className="h-3 w-3" /> Bug Detection
+          </Badge>
+        </div>
+      </div>
     </div>
   )
 }
