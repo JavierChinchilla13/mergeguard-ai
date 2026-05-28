@@ -2,8 +2,7 @@
 
 import React from "react"
 import Link from "next/link"
-import { Shield, Globe } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Shield } from "lucide-react"
 
 export function Navbar() {
   return (
@@ -26,14 +25,6 @@ export function Navbar() {
           </Link>
         </nav>
         <div className="flex items-center gap-4">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="hidden sm:flex font-bold"
-            onClick={() => document.getElementById('analyze')?.scrollIntoView({ behavior: 'smooth' })}
-          >
-            Run Analysis
-          </Button>
         </div>
       </div>
     </header>
