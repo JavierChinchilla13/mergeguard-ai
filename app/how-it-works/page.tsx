@@ -301,7 +301,7 @@ function NavButton({ active, onClick, icon, label }: { active: boolean, onClick:
         active ? "bg-primary/10 text-primary" : "text-zinc-500 hover:bg-white/5 hover:text-white"
       )}
     >
-      {React.cloneElement(icon as React.ReactElement, { className: "h-4 w-4" })}
+      {React.cloneElement(icon as React.ReactElement<any>, { className: "h-4 w-4" })}
       {label}
     </button>
   )
@@ -350,7 +350,7 @@ function IntegrationItem({ icon, title, detail }: { icon: React.ReactNode, title
   return (
     <div className="flex gap-4 items-start p-6 rounded-2xl bg-zinc-900/30 border border-white/5">
       <div className="p-3 rounded-xl bg-white/5 text-zinc-400">
-        {React.cloneElement(icon as React.ReactElement, { className: "h-5 w-5" })}
+        {React.cloneElement(icon as React.ReactElement<any>, { className: "h-5 w-5" })}
       </div>
       <div className="space-y-1">
         <h4 className="font-bold text-white">{title}</h4>

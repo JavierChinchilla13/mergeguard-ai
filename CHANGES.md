@@ -80,6 +80,7 @@ merge-guard/
 - **Live File Inspection:** Tabbable interface to switch between AI Review, Changed Files (with patches), and Observability Stats.
 
 ### 6. Maintenance & Technical Fixes
+- **TypeScript Overload Resolution:** Resolved a build-breaking "No overload matches this call" error in `React.cloneElement` by implementing explicit type assertions (`React.ReactElement<any>`) across the "How It Works" and "Results" components.
 - **Lucide Icon Integrity:** Fixed a missing `Fingerprint` import in the "How It Works" documentation page to ensure UI consistency and build stability.
 
 ## 🛠️ Getting Started

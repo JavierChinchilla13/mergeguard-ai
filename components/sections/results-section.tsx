@@ -473,7 +473,7 @@ function QuickStat({ icon, label, value, sub, highlight = false }: { icon: React
     )}>
       <div className="flex items-center gap-2 mb-1">
         <div className={cn("text-zinc-500", highlight && "text-primary opacity-100")}>
-          {React.cloneElement(icon as React.ReactElement, { className: "h-3 w-3" })}
+          {React.cloneElement(icon as React.ReactElement<any>, { className: "h-3 w-3" })}
         </div>
         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</span>
       </div>
@@ -503,7 +503,7 @@ function StatusItem({ label, active, icon }: { label: string, active: boolean, i
     <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/5">
       <div className="flex items-center gap-3">
         <div className={cn("p-1.5 rounded bg-zinc-800 text-zinc-400", active && "text-primary bg-primary/10")}>
-          {React.cloneElement(icon as React.ReactElement, { className: "h-3.5 w-3.5" })}
+          {React.cloneElement(icon as React.ReactElement<any>, { className: "h-3.5 w-3.5" })}
         </div>
         <span className="text-[11px] font-bold text-zinc-300">{label}</span>
       </div>
