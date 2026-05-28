@@ -44,13 +44,14 @@ merge-guard/
 
 ### 0. Production-Grade UI/UX & Observability (May 2026 Update)
 - **Technical Dashboard:** Transformed the UI into a high-density engineering tool inspired by GitHub and Vercel.
-- **Enhanced Observability:** Added a compact metadata bar and dedicated "Observability" tab with latency instrumentation and decision logs.
-- **Technical Terminal:** Implemented a live, auto-scrolling system log with granular technical feedback (Cache states, Chunks, Prioritization).
-- **Technical Documentation:** Created a comprehensive "How It Works" page explaining chunking, hashing, and AI reasoning strategies.
-- **Improved AI Core:** Added "Architecture" and "Suggestions" categories to the analysis core for more comprehensive reviews.
-- **UI Simplification:** Streamlined the Navbar and Footer by removing redundant links and branding for a more focused user experience.
-- **Markdown Preview Flow:** Interactive review preview and clipboard support before GitHub posting.
-- **Hardened Pipeline:** Robust error handling for empty PRs, rate limits, and detailed cache invalidation reasoning.
+- **File Intelligence:** Added risk-aware metadata to the file list, including prioritization reasoning, token impact, and chunk assignments.
+- **Senior Lead Audit:** Findings now feature technical "Confidence" scoring and deep-dive seniorfix recommendations.
+- **Advanced Observability:** Implemented a "System Status" panel and "Resource Strategy" summary for full pipeline transparency.
+- **Session Fingerprinting:** Added SHA-256 diff hashing and session IDs for verifiable analysis tracking.
+- **Technical Terminal:** Refined real-time logs with precise timestamps and system-level events (PRIO, CHNK, SYST).
+- **UI Simplification:** Streamlined the Navbar and Footer by removing redundant links for a focused tool experience.
+- **Workflow Polish:** Enhanced the GitHub review preview with a "Ready to Post" signal and clipboard support.
+- **Hardened Pipeline:** Added robust error handling for empty PRs, rate limits, and detailed cache invalidation reasoning.
 
 ### 1. Engineering Observability (Production Ready)
 - **Analysis Metrics Dashboard:** A comprehensive statistics panel displaying total tokens, pipeline duration, and per-service latency (GitHub API vs. Gemini Reasoning).

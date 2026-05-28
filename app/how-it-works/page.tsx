@@ -217,9 +217,9 @@ export default function HowItWorks() {
                   <CheckCircle2 className="h-4 w-4" /> Strengths
                 </h4>
                 <ul className="space-y-4 text-sm text-zinc-400">
+                  <li className="flex gap-3"><div className="h-5 w-5 rounded bg-green-500/10 flex items-center justify-center shrink-0"><ChevronRight className="h-3 w-3 text-green-500" /></div> <span><span className="text-white font-bold">Confidence Scoring:</span> Every finding is assigned a confidence level (High/Medium/Low) based on pattern matching and logic certainty.</span></li>
                   <li className="flex gap-3"><div className="h-5 w-5 rounded bg-green-500/10 flex items-center justify-center shrink-0"><ChevronRight className="h-3 w-3 text-green-500" /></div> <span>Catches <span className="text-white font-bold">obvious logic bugs</span> that human reviewers often miss during long sessions.</span></li>
                   <li className="flex gap-3"><div className="h-5 w-5 rounded bg-green-500/10 flex items-center justify-center shrink-0"><ChevronRight className="h-3 w-3 text-green-500" /></div> <span>Highly effective at <span className="text-white font-bold">security surface analysis</span> (OWASP patterns).</span></li>
-                  <li className="flex gap-3"><div className="h-5 w-5 rounded bg-green-500/10 flex items-center justify-center shrink-0"><ChevronRight className="h-3 w-3 text-green-500" /></div> <span>Provides <span className="text-white font-bold">actionable code fixes</span>, not just vague complaints.</span></li>
                 </ul>
               </div>
               <div className="space-y-6">
@@ -228,10 +228,38 @@ export default function HowItWorks() {
                 </h4>
                 <ul className="space-y-4 text-sm text-zinc-400">
                   <li className="flex gap-3"><div className="h-5 w-5 rounded bg-red-500/10 flex items-center justify-center shrink-0"><ChevronRight className="h-3 w-3 text-red-500" /></div> <span><span className="text-white font-bold">Context Gaps:</span> AI cannot fully understand company-wide tribal knowledge or specific legacy constraints.</span></li>
-                  <li className="flex gap-3"><div className="h-5 w-5 rounded bg-red-500/10 flex items-center justify-center shrink-0"><ChevronRight className="h-3 w-3 text-red-500" /></div> <span><span className="text-white font-bold">Not a Replacment:</span> Should be used to *augment* senior human review, never as the final sole sign-off.</span></li>
+                  <li className="flex gap-3"><div className="h-5 w-5 rounded bg-red-500/10 flex items-center justify-center shrink-0"><ChevronRight className="h-3 w-3 text-red-500" /></div> <span><span className="text-white font-bold">Not a Replacement:</span> Should be used to *augment* senior human review, never as the final sole sign-off.</span></li>
                   <li className="flex gap-3"><div className="h-5 w-5 rounded bg-red-500/10 flex items-center justify-center shrink-0"><ChevronRight className="h-3 w-3 text-red-500" /></div> <span><span className="text-white font-bold">Diff Visibility:</span> Results are only as good as the patch context provided by the GitHub API.</span></li>
                 </ul>
               </div>
+            </div>
+          </section>
+
+          {/* Session Auditing */}
+          <section className="space-y-8 scroll-mt-24">
+            <SectionHeader 
+              title="Session Fingerprinting" 
+              description="Full transparency into analysis execution via verifiable session metadata."
+            />
+            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h4 className="text-white font-bold flex items-center gap-2 italic">
+                    <Fingerprint className="h-4 w-4 text-primary" />
+                    SHA-256 Session ID
+                  </h4>
+                  <p className="text-xs text-zinc-500 font-mono">Example: SES-A1B2C3D4</p>
+                </div>
+                <div className="flex gap-4">
+                   <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black tracking-widest uppercase">Verifiable</Badge>
+                   <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 text-[9px] font-black tracking-widest uppercase">Auditable</Badge>
+                </div>
+              </div>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                Every analysis run generates a unique session ID and a diff fingerprint. This ensures that the results you see 
+                are directly linked to a specific state of the code. In the <span className="text-white font-bold">Observability</span> tab, 
+                you can view the exact technical reasoning for why each file was prioritized or skipped during that specific session.
+              </p>
             </div>
           </section>
 

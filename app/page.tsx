@@ -61,13 +61,13 @@ export default function LandingPage() {
     }, 100);
 
     try {
-      addLog(`[START] Initializing MergeGuard pipeline for PR`, 'info');
+      addLog(`[SYSTEM] Initializing MergeGuard audit engine`, 'syst');
       
       // Stage 1: Fetching
       await new Promise(r => setTimeout(r, 600));
       setCurrentStage(ANALYSIS_STAGES[1]);
       setProgress(12);
-      addLog("Fetching PR metadata from GitHub API...", 'github');
+      addLog("Streaming PR metadata via GitHub REST API...", 'github');
 
       const response = await fetch("/api/analyze-pr", {
         method: "POST",
@@ -78,56 +78,56 @@ export default function LandingPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "GitHub API Failure");
 
-      addLog(`Successfully retrieved ${data.filesCount} changed files.`, 'success');
+      addLog(`SUCCESS: Parsed ${data.filesCount} changed files from remote.`, 'success');
 
       // Stage 2: Parsing & Prioritizing
       setCurrentStage(ANALYSIS_STAGES[2]);
       setProgress(28);
-      addLog("Running high-precision file prioritization...", 'info');
+      addLog("Executing risk-aware file prioritization...", 'info');
       
       const insights = data.metadata?.insights || [];
       const prioritized = insights.filter((i: any) => i.decision === 'prioritized');
       const skipped = insights.filter((i: any) => i.decision === 'skipped');
       
-      if (skipped.length > 0) addLog(`Auto-skipped ${skipped.length} generated/non-source files.`, 'info');
-      prioritized.forEach((p: any) => addLog(`Prioritized ${p.filename} (${p.reason})`, 'ai'));
+      if (skipped.length > 0) addLog(`Filtered ${skipped.length} low-signal assets (lockfiles/generated).`, 'syst');
+      prioritized.forEach((p: any) => addLog(`PRIO: ${p.filename} (${p.reason})`, 'prio'));
 
       if (data.cacheStatus === 'hit') {
-        addLog("SHA-256 content match. Reusing verified cached results.", 'cache');
+        addLog("CACHE HIT: Deterministic SHA-256 match. Serving persisted report.", 'cache');
       } else if (data.cacheStatus === 'invalidated') {
-        addLog(`Cache invalidated: ${data.metadata?.cacheInvalidationReason || "PR content changed"}.`, 'info');
-        addLog("Initializing fresh AI reasoning pipeline...", 'info');
+        addLog(`CACHE INVALID: ${data.metadata?.cacheInvalidationReason || "Diff hash changed"}.`, 'info');
+        addLog("Initializing cold-start reasoning pipeline...", 'syst');
       } else {
-        addLog("No existing cache found. Starting analysis.", 'info');
+        addLog("CACHE MISS: No previous session found. Starting full audit.", 'info');
       }
 
       await new Promise(r => setTimeout(r, 500));
       setCurrentStage(ANALYSIS_STAGES[3]);
       setProgress(42);
-      addLog(`Segmented diff into ${data.metadata?.chunkCount || 1} batches (~${(data.metadata?.totalTokens || 0).toLocaleString()} tokens).`, 'info');
+      addLog(`CHNK: Segmented diff into ${data.metadata?.chunkCount || 1} sequential batches (~${(data.metadata?.totalTokens || 0).toLocaleString()} tokens).`, 'chnk');
 
       // Stage 3: AI Reasoning
       setCurrentStage(ANALYSIS_STAGES[4]);
       setProgress(58);
-      addLog(`Analyzing logic bugs using ${data.metadata?.model}...`, 'ai');
+      addLog(`Reasoning: Auditing logic via ${data.metadata?.model}...`, 'ai');
       
-      if (data.review?.bugs?.length > 0) addLog(`Detected ${data.review.bugs.length} potential logic flaws.`, 'bug');
+      if (data.review?.bugs?.length > 0) addLog(`ALERT: Detected ${data.review.bugs.length} potential logic vulnerabilities.`, 'bug');
 
       await new Promise(r => setTimeout(r, 800));
       setCurrentStage(ANALYSIS_STAGES[5]);
       setProgress(72);
-      addLog("Performing deep security vulnerability scan...", 'security');
-      if (data.review?.security?.length > 0) addLog(`Security alert flagged in ${data.review.security[0].file}`, 'security');
+      addLog("Reasoning: Performing deep security surface scan...", 'security');
+      if (data.review?.security?.length > 0) addLog(`SECURITY: Critical alert flagged in ${data.review.security[0].file}`, 'security');
 
       await new Promise(r => setTimeout(r, 800));
       setCurrentStage(ANALYSIS_STAGES[6]);
       setProgress(86);
-      addLog("Checking performance and scalability gaps...", 'perf');
+      addLog("Reasoning: Evaluating performance and scalability metrics...", 'perf');
 
       await new Promise(r => setTimeout(r, 600));
       setCurrentStage(ANALYSIS_STAGES[7]);
       setProgress(100);
-      addLog("Review finalized. Aggregating results.", 'success');
+      addLog("Audit finalized. Building structured response.", 'success');
 
       setPrData(data);
       

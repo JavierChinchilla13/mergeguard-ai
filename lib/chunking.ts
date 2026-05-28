@@ -12,43 +12,47 @@ export interface FileInsight {
   filename: string;
   decision: 'prioritized' | 'analyzed' | 'skipped';
   reason: string;
+  tokenCount?: number;
+  chunkIndex?: number;
+  category?: 'Security' | 'API' | 'Infrastructure' | 'Core Logic' | 'UI/UX' | 'Utility' | 'Config' | 'Generated' | 'Asset';
 }
 
 const IGNORED_PATTERNS = [
-  { pattern: 'package-lock.json', reason: 'Generated lockfile' },
-  { pattern: 'yarn.lock', reason: 'Generated lockfile' },
-  { pattern: 'pnpm-lock.yaml', reason: 'Generated lockfile' },
-  { pattern: 'node_modules/', reason: 'Dependency directory' },
-  { pattern: 'dist/', reason: 'Build artifact' },
-  { pattern: 'build/', reason: 'Build artifact' },
-  { pattern: '.next/', reason: 'Next.js internals' },
-  { pattern: 'public/', reason: 'Static assets' },
-  { pattern: '.ico', reason: 'Binary/Icon' },
-  { pattern: '.png', reason: 'Image asset' },
-  { pattern: '.jpg', reason: 'Image asset' },
-  { pattern: '.jpeg', reason: 'Image asset' },
-  { pattern: '.gif', reason: 'Image asset' },
-  { pattern: '.svg', reason: 'Vector asset' },
-  { pattern: '.pdf', reason: 'Document' },
-  { pattern: '.bin', reason: 'Binary file' },
-  { pattern: '.min.js', reason: 'Minified code' },
-  { pattern: '.min.css', reason: 'Minified style' },
-  { pattern: '.map', reason: 'Source map' },
+  { pattern: 'package-lock.json', reason: 'Generated lockfile', category: 'Generated' as const },
+  { pattern: 'yarn.lock', reason: 'Generated lockfile', category: 'Generated' as const },
+  { pattern: 'pnpm-lock.yaml', reason: 'Generated lockfile', category: 'Generated' as const },
+  { pattern: 'node_modules/', reason: 'Dependency directory', category: 'Config' as const },
+  { pattern: 'dist/', reason: 'Build artifact', category: 'Generated' as const },
+  { pattern: 'build/', reason: 'Build artifact', category: 'Generated' as const },
+  { pattern: '.next/', reason: 'Next.js internals', category: 'Generated' as const },
+  { pattern: 'public/', reason: 'Static assets', category: 'Asset' as const },
+  { pattern: '.ico', reason: 'Binary/Icon', category: 'Asset' as const },
+  { pattern: '.png', reason: 'Image asset', category: 'Asset' as const },
+  { pattern: '.jpg', reason: 'Image asset', category: 'Asset' as const },
+  { pattern: '.jpeg', reason: 'Image asset', category: 'Asset' as const },
+  { pattern: '.gif', reason: 'Image asset', category: 'Asset' as const },
+  { pattern: '.svg', reason: 'Vector asset', category: 'Asset' as const },
+  { pattern: '.pdf', reason: 'Document', category: 'Asset' as const },
+  { pattern: '.bin', reason: 'Binary file', category: 'Asset' as const },
+  { pattern: '.min.js', reason: 'Minified code', category: 'Generated' as const },
+  { pattern: '.min.css', reason: 'Minified style', category: 'Generated' as const },
+  { pattern: '.map', reason: 'Source map', category: 'Generated' as const },
 ];
 
 const PRIORITY_PATTERNS = [
-  { pattern: 'src/auth/', reason: 'High-risk security logic' },
-  { pattern: 'app/api/', reason: 'API endpoint logic' },
-  { pattern: 'src/api/', reason: 'API endpoint logic' },
-  { pattern: 'src/services/', reason: 'Core business services' },
-  { pattern: 'server/', reason: 'Backend infrastructure' },
-  { pattern: 'models/', reason: 'Database schema/models' },
-  { pattern: 'controllers/', reason: 'Request handling logic' },
-  { pattern: 'middleware/', reason: 'Request pipeline logic' },
-  { pattern: 'utils/security', reason: 'Critical security utility' },
-  { pattern: 'hooks/', reason: 'React state/lifecycle logic' },
-  { pattern: 'src/', reason: 'Primary source code' },
-  { pattern: 'app/', reason: 'Application routes/logic' },
+  { pattern: 'src/auth/', reason: 'High-risk security logic', category: 'Security' as const },
+  { pattern: 'app/api/', reason: 'API endpoint logic', category: 'API' as const },
+  { pattern: 'src/api/', reason: 'API endpoint logic', category: 'API' as const },
+  { pattern: 'src/services/', reason: 'Core business services', category: 'Core Logic' as const },
+  { pattern: 'server/', reason: 'Backend infrastructure', category: 'Infrastructure' as const },
+  { pattern: 'models/', reason: 'Database schema/models', category: 'Infrastructure' as const },
+  { pattern: 'controllers/', reason: 'Request handling logic', category: 'API' as const },
+  { pattern: 'middleware/', reason: 'Request pipeline logic', category: 'Infrastructure' as const },
+  { pattern: 'utils/security', reason: 'Critical security utility', category: 'Security' as const },
+  { pattern: 'hooks/', reason: 'React state/lifecycle logic', category: 'UI/UX' as const },
+  { pattern: 'components/', reason: 'UI components', category: 'UI/UX' as const },
+  { pattern: 'src/', reason: 'Primary source code', category: 'Core Logic' as const },
+  { pattern: 'app/', reason: 'Application routes/logic', category: 'Core Logic' as const },
 ];
 
 /**
@@ -65,7 +69,13 @@ export function filterAndPrioritizeFiles(files: any[]): { filtered: any[], insig
     });
 
     if (skipMatch) {
-      insights.push({ filename: file.filename, decision: 'skipped', reason: skipMatch.reason });
+      insights.push({ 
+        filename: file.filename, 
+        decision: 'skipped', 
+        reason: skipMatch.reason,
+        category: skipMatch.category,
+        tokenCount: file.patch ? estimateTokens(file.patch) : 0
+      });
       return false;
     }
     return true;
@@ -88,7 +98,9 @@ export function filterAndPrioritizeFiles(files: any[]): { filtered: any[], insig
     insights.push({
       filename: file.filename,
       decision: priorityMatch ? 'prioritized' : 'analyzed',
-      reason: priorityMatch ? priorityMatch.reason : 'Standard source analysis'
+      reason: priorityMatch ? priorityMatch.reason : 'Standard source analysis',
+      category: priorityMatch?.category || 'Utility',
+      tokenCount: file.patch ? estimateTokens(file.patch) : 0
     });
   });
 
@@ -107,6 +119,7 @@ export function estimateTokens(text: string): number {
  */
 export function chunkFiles(
   files: any[], 
+  insights: FileInsight[],
   maxTokensPerChunk: number = 30000, 
   maxCharsPerFile: number = 12000
 ): ChunkedDiff[] {
@@ -115,12 +128,11 @@ export function chunkFiles(
   let currentChunkContent = "";
   let currentTokenCount = 0;
 
-  for (const file of files) {
-    if (!file.patch) continue;
+  files.forEach((file, index) => {
+    if (!file.patch) return;
 
     let patch = file.patch;
     if (patch.length > maxCharsPerFile) {
-      console.log(`[CHUNKING] Truncating large patch: ${file.filename} (${patch.length} chars)`);
       patch = patch.substring(0, maxCharsPerFile) + "\n\n[... PATCH TRUNCATED FOR TOKEN LIMITS ...]";
     }
 
@@ -142,7 +154,13 @@ export function chunkFiles(
     currentChunkFiles.push(file.filename);
     currentChunkContent += fileContent;
     currentTokenCount += fileTokens;
-  }
+    
+    // Assign chunk index to insight
+    const insight = insights.find(i => i.filename === file.filename);
+    if (insight) {
+      insight.chunkIndex = chunks.length; // 0-based
+    }
+  });
 
   if (currentChunkFiles.length > 0) {
     chunks.push({

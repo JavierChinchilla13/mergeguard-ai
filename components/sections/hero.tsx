@@ -2,7 +2,7 @@
 
 import React from "react"
 import { motion } from "framer-motion"
-import { Activity } from "lucide-react"
+import { Terminal } from "lucide-react"
 
 export function Hero() {
   return (
@@ -20,17 +20,16 @@ export function Hero() {
         className="container flex flex-col items-center text-center"
       >
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-primary">
-          <Activity className="h-3 w-3" />
-          <span>Production-Grade PR Intelligence</span>
+          <Terminal className="h-3 w-3" />
+          <span>Automated Infrastructure Audit</span>
         </div>
 
-        <h1 className="mb-4 text-4xl font-black tracking-tighter md:text-6xl text-foreground">
-          MergeGuard <span className="text-primary/80">AI</span>
+        <h1 className="mb-4 text-4xl font-black tracking-tighter md:text-6xl text-foreground italic">
+          MergeGuard <span className="text-primary/80">CORE</span>
         </h1>
         
-        <p className="max-w-[600px] text-sm md:text-base text-muted-foreground leading-relaxed font-medium">
-          Multi-pass deep static analysis for GitHub Pull Requests. <br className="hidden md:block" />
-          Detect security flaws, logic bugs, and architectural debt before merging.
+        <p className="max-w-[600px] text-sm md:text-base text-zinc-400 leading-relaxed font-bold font-mono uppercase tracking-tighter">
+          Structured AI code review & <br className="hidden md:block" /> Large-diff segmentation pipeline
         </p>
       </motion.div>
     </section>

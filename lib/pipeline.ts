@@ -2,7 +2,11 @@ import { filterAndPrioritizeFiles, chunkFiles, ChunkedDiff, FileInsight } from "
 import { runAIReview, ReviewResponse, getModelName } from "./gemini";
 import { getContextCache } from "./cache";
 
+import crypto from 'crypto';
+
 export interface AnalysisMetadata {
+  sessionId: string;
+  fingerprint: string;
   model: string;
   totalTokens: number;
   chunkCount: number;
@@ -34,6 +38,10 @@ export async function executeAIReviewPipeline(
   const startTime = Date.now();
   const chunkingStartTime = Date.now();
   
+  const sessionId = `SES-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+  const contentToHash = allFiles.map(f => f.filename + (f.patch || "")).join("|");
+  const fingerprint = crypto.createHash('sha256').update(contentToHash).digest('hex');
+
   // 1. Filter and Prioritize (with Insight generation)
   const { filtered: relevantFiles, insights } = filterAndPrioritizeFiles(allFiles);
   const skippedCount = allFiles.length - relevantFiles.length;
@@ -52,6 +60,8 @@ export async function executeAIReviewPipeline(
         positiveFeedback: ["PR contains only non-source files."]
       },
       metadata: {
+        sessionId,
+        fingerprint,
         model: getModelName(),
         totalTokens: 0,
         chunkCount: 0,
@@ -68,11 +78,11 @@ export async function executeAIReviewPipeline(
   }
 
   // 2. Chunking
-  const chunks = chunkFiles(relevantFiles);
+  const chunks = chunkFiles(relevantFiles, insights);
   const totalTokens = chunks.reduce((acc, c) => acc + c.tokenCount, 0);
   const chunkingLatency = Date.now() - chunkingStartTime;
   
-  console.log(`[PIPELINE] Starting analysis for ${relevantFiles.length} files across ${chunks.length} chunks (~${totalTokens} tokens).`);
+  console.log(`[PIPELINE] [ID: ${sessionId}] Starting analysis for ${relevantFiles.length} files across ${chunks.length} chunks (~${totalTokens} tokens).`);
 
   const mergedReview: ReviewResponse = {
     summary: "",
@@ -94,7 +104,7 @@ export async function executeAIReviewPipeline(
 
   for (let i = 0; i < chunksToProcess.length; i++) {
     const chunk = chunksToProcess[i];
-    console.log(`[PIPELINE] Processing chunk ${i + 1}/${chunksToProcess.length}...`);
+    console.log(`[PIPELINE] [ID: ${sessionId}] Processing chunk ${i + 1}/${chunksToProcess.length}...`);
     
     // Attempt context caching
     let cacheName = null;
@@ -102,7 +112,7 @@ export async function executeAIReviewPipeline(
       const cache = getContextCache();
       cacheName = await cache.getOrCreateCache(`${url}-chunk-${i}`, chunk.content);
     } catch (e) {
-      console.warn(`[PIPELINE] Cache initialization failed for chunk ${i}`);
+      console.warn(`[PIPELINE] [ID: ${sessionId}] Cache initialization failed for chunk ${i}`);
     }
 
     const aiCallStartTime = Date.now();
@@ -134,6 +144,8 @@ export async function executeAIReviewPipeline(
   const totalDuration = Date.now() - startTime;
   
   const metadata: AnalysisMetadata = {
+    sessionId,
+    fingerprint,
     model: getModelName(),
     totalTokens,
     chunkCount: chunks.length,

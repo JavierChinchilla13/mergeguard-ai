@@ -1,53 +1,42 @@
-# 🛡️ MergeGuard AI
+# 🛡️ MergeGuard CORE
 
-**Automated Code Intelligence for Every Pull Request.**
+**Automated Infrastructure Audit & Structured AI Code Intelligence.**
 
 [![Next.js 15](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
 [![Gemini 3.5 Flash](https://img.shields.io/badge/AI-Gemini%203.5%20Flash-blue?logo=google-gemini)](https://deepmind.google/technologies/gemini/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-v4-38B2AC?logo=tailwind-css)](https://tailwindcss.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 MergeGuard is a production-grade AI-powered engine designed to automate GitHub Pull Request reviews. It goes beyond simple linting by performing multi-pass deep static analysis to detect logical bugs, security vulnerabilities, and architectural concerns, delivering senior-level feedback directly to your engineering workflow.
 
 ---
 
-## 🔍 The Problem
+## ✨ Production-Grade Features
 
-Modern engineering teams face a scaling bottleneck: **The Pull Request Review.**
-- **Cognitive Load:** Reviewing large, complex diffs is exhausting and error-prone.
-- **Review Latency:** High-priority features often stall waiting for human sign-off.
-- **Consistency:** Security and performance patterns are frequently overlooked in the rush to ship.
+### 🧠 Senior Lead AI Audit
+Powered by **Gemini 3.5 Flash**, MergeGuard acts as a Lead Engineer and Security Architect. It performs technical reasoning on race conditions, N+1 queries, React anti-patterns, and the OWASP Top 10 with explicit **Confidence Scoring**.
 
-MergeGuard solves this by providing a scalable, transparent, and high-intelligence "AI Lead Engineer" that audits every line of code before a human even opens the PR.
+### ⚡ Deterministic SHA-256 Caching
+MergeGuard implements a rigorous **content-aware caching layer**.
+- **SHA-256 Verification:** Analysis is hashed based on PR diff content, ensuring absolute accuracy.
+- **Instant Result Reuse:** Matches identical code states in < 50ms, bypassing redundant AI compute.
+- **Explicit Invalidation:** Automatically detects new commits and triggers fresh reasoning sessions.
 
----
-
-## ✨ Core Features
-
-### 🧠 Senior-Level AI Reasoning
-Powered by **Gemini 3.5 Flash**, MergeGuard acts as a Lead Engineer and Security Architect. It doesn't just "summarize"—it reasons about race conditions, N+1 queries, React anti-patterns, and the OWASP Top 10.
-
-### ⚡ Verifiable Context Caching
-MergeGuard implements a rigorous **SHA-256 content-aware caching layer**.
-- **Deterministic Keys:** Analysis is hashed based on PR content, not just URL.
-- **Instant Reuse:** If a PR hasn't changed, results are served instantly from the server-side cache.
-- **Invalidation:** The cache automatically invalidates the moment a new commit is pushed.
-
-### 📦 Intelligent Large PR Handling
-While standard AI wrappers fail on large diffs, MergeGuard uses a sophisticated **segmentation pipeline**:
-- **Token Estimation:** Real-time character-to-token projection.
-- **Incremental Chunking:** Massive PRs are split into token-safe batches and processed sequentially.
-- **Smart Prioritization:** Backend logic prioritizes high-risk files (`auth/`, `api/`, `services/`) while skipping noise (`lockfiles`, `binaries`, `assets`).
+### 📦 Large-Diff Segmentation Pipeline
+Optimized for real-world enterprise codebases where PRs exceed standard LLM context limits:
+- **Intelligent Chunking:** Massive diffs are split into token-safe batches of ~30k tokens.
+- **High-Risk Prioritization:** Critical logic (auth, api, middleware) is analyzed first.
+- **Noise Filtering:** Automated exclusion of lockfiles, build artifacts, and binary assets.
 
 ### 📊 Engineering Observability
-A professional dashboard provides full transparency into the AI's execution:
-- **Latency Instrumentation:** Millisecond-level tracking for GitHub API vs. AI Compute.
-- **Decision Logs:** Real-time visibility into why files were prioritized or skipped.
-- **Token Metrics:** Precise tracking of resource consumption per analysis.
+A professional dashboard providing full transparency into the AI's execution pipeline:
+- **System Status:** Real-time connectivity tracking for GitHub and Gemini APIs.
+- **Latency Instrumentation:** Millisecond-level tracking for API fetch vs. AI reasoning.
+- **Decision Logs:** Technical visibility into file prioritization and skip reasons.
+- **Session Fingerprinting:** Unique session IDs linked to specific code fingerprints.
 
-### 💬 Direct GitHub Integration
-One-click review posting. MergeGuard formats findings into professional, high-fidelity Markdown comments with emojis, severity badges, and actionable fix recommendations.
+### 💬 GitHub Workflow Integration
+One-click review posting. MergeGuard formats findings into high-fidelity Markdown reports with emojis, severity badges, and actionable fix recommendations.
 
 ---
 
@@ -55,14 +44,14 @@ One-click review posting. MergeGuard formats findings into professional, high-fi
 
 ```text
 MergeGuard Pipeline:
-[URL Input] -> [GitHub API Fetch] -> [SHA-256 Content Hashing]
+[URL Input] -> [GitHub REST Fetch] -> [SHA-256 Fingerprinting]
                                           |
     +-------------------------------------+-----------------------------------+
     |                                                                         |
 [CACHE HIT]                                                              [CACHE MISS]
-Serve Persisted Result                                            [Filter & Prioritize Files]
+Serve Persisted Report                                            [Filter & Prioritize Logic]
                                                                               |
-                                                                    [Dynamic Diff Chunking]
+                                                                    [Dynamic Diff Batching]
                                                                               |
                                                                    [Gemini Multi-Pass AI]
                                                                               |
@@ -70,23 +59,6 @@ Serve Persisted Result                                            [Filter & Prio
                                                                               |
                                                                      [Observability Sync]
 ```
-
-### Technical Stack
-- **Frontend:** Next.js 15 (App Router), Framer Motion, Tailwind CSS v4.
-- **AI Engine:** Google AI SDK (Gemini 3.5 Flash).
-- **Observability:** Custom internal instrumentation for latency and resource tracking.
-- **Caching:** In-memory server-side persistence with SHA-256 verification.
-
----
-
-## 🚀 Large Diff Strategy
-
-MergeGuard is built for real-world codebases. When a PR exceeds Gemini's context limits, our pipeline activates:
-
-1.  **Filtering:** Automatically removes `package-lock.json`, `dist/`, and binary assets.
-2.  **Prioritization:** Assigns weights to directories. `app/api/` is analyzed before `src/styles/`.
-3.  **Truncation:** Individual file patches are capped at 12,000 characters to prevent single-file token overflow.
-4.  **Batching:** Remaining content is segmented into optimized chunks, processed through the AI, and merged into a cohesive structured response.
 
 ---
 
@@ -98,53 +70,32 @@ git clone https://github.com/JavierChinchilla13/mergeguard-ai.git
 cd mergeguard-ai
 ```
 
-### 2. Install dependencies
-```bash
-npm install
-```
-
-### 3. Environment Setup
+### 2. Environment Setup
 Create a `.env.local` file in the root directory:
 ```env
-# Required: For fetching PR data and posting comments
 GITHUB_TOKEN=your_github_personal_access_token
-
-# Required: The core AI intelligence
 GEMINI_API_KEY=your_google_ai_studio_key
-
-# Optional: Defaults to gemini-3.5-flash
 GEMINI_MODEL=gemini-3.5-flash
 ```
 
-### 4. Run the platform
+### 3. Run the platform
 ```bash
+npm install
 npm run dev
 ```
 
 ---
 
-## ⚖️ Engineering Tradeoffs
-
-- **Sequential vs Parallel Processing:** To ensure stability on the Gemini Free Tier, we process chunks sequentially. While this adds latency for massive PRs, it significantly reduces `429 Too Many Requests` errors.
-- **In-Memory Caching:** We opted for a high-performance in-memory `Map` for result caching. For a global production scale, this would be swapped for Redis, but for hackathon demonstration, this provides the lowest possible latency.
-- **Flash vs Pro Models:** We prioritize **Gemini Flash** for its superior speed and lower token cost, which allows for the high-fidelity "streaming" feel of the application.
-
----
-
 ## 🛣️ Future Roadmap
 
-- [ ] **Inline GitHub Suggestions:** Use the GitHub Review API to suggest code changes directly on specific lines.
-- [ ] **Historical Memory:** Allow the AI to "remember" previous reviews for a specific repository to detect recurring patterns.
-- [ ] **Team Collaboration:** Shared dashboards for engineering managers to track code quality trends over time.
-- [ ] **Multi-Model Orchestration:** Use Gemini Pro for complex architectural reviews and Flash for rapid bug checking.
+- [ ] **Inline GitHub Suggestions:** Direct line-level code replacement suggestions.
+- [ ] **Historical Context Memory:** Repository-wide pattern recognition across multiple PRs.
+- [ ] **Team Analytics:** Quality trend tracking for engineering managers.
 
 ---
 
 ## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
-
----
+Distributed under the MIT License.
 
 <p align="center">
   Built with 🛡️ by the <b>MergeGuard Team</b> for the 2026 AI Engineering Hackathon.

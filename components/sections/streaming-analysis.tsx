@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 export interface AnalysisLog {
-  type: 'info' | 'security' | 'bug' | 'perf' | 'success' | 'cache' | 'error' | 'github' | 'ai';
+  type: 'info' | 'security' | 'bug' | 'perf' | 'success' | 'cache' | 'error' | 'github' | 'ai' | 'prio' | 'chnk' | 'syst';
   message: string;
   timestamp: number;
 }
@@ -164,14 +164,17 @@ export function StreamingAnalysis({ logs, currentStage, progress, duration }: St
 
 function getLogTypeStyles(type: AnalysisLog['type']) {
   switch (type) {
+    case 'syst': return 'bg-zinc-800 text-zinc-400 border-zinc-700';
+    case 'prio': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+    case 'chnk': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
     case 'info': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
     case 'security': return 'bg-red-500/10 text-red-400 border-red-500/20';
     case 'bug': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
     case 'perf': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
     case 'success': return 'bg-green-500/10 text-green-400 border-green-500/20';
-    case 'cache': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-    case 'github': return 'bg-white/10 text-white/70 border-white/20';
-    case 'ai': return 'bg-primary/10 text-primary border-primary/20';
+    case 'cache': return 'bg-primary/10 text-primary border-primary/20';
+    case 'github': return 'bg-white/5 text-white/50 border-white/10';
+    case 'ai': return 'bg-primary/20 text-primary border-primary/30';
     case 'error': return 'bg-red-900/20 text-red-500 border-red-900/40';
     default: return 'bg-white/5 text-white/40 border-white/10';
   }
