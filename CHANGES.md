@@ -79,6 +79,9 @@ merge-guard/
 - **Direct PR Commenting:** Post AI reviews directly to GitHub with professionally formatted Markdown reports.
 - **Live File Inspection:** Tabbable interface to switch between AI Review, Changed Files (with patches), and Observability Stats.
 
+### 6. Maintenance & Technical Fixes
+- **Lucide Icon Integrity:** Fixed a missing `Fingerprint` import in the "How It Works" documentation page to ensure UI consistency and build stability.
+
 ## 🛠️ Getting Started
 
 1.  **Install dependencies:**
