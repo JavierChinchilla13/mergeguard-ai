@@ -30,7 +30,7 @@ class ReviewCacheService {
   /**
    * Gets a cached review with explicit status reporting
    */
-  get(url: string, currentHash: string): { data: { review: ReviewResponse, metadata: AnalysisMetadata } | null, status: CacheStatus, cachedAt?: number, invalidationReason?: string } {
+  get(url: string, currentHash: string): { data: any | null, status: CacheStatus, cachedAt?: number, invalidationReason?: string } {
     const cached = this.cache.get(url);
     
     if (!cached) {
@@ -52,7 +52,7 @@ class ReviewCacheService {
 
     return {
       data: {
-        review: cached.data.review,
+        ...cached.data,
         metadata: {
           ...cached.data.metadata,
           cacheStatus: 'hit',
@@ -67,7 +67,7 @@ class ReviewCacheService {
   /**
    * Sets a review in the cache
    */
-  set(url: string, hash: string, data: { review: ReviewResponse, metadata: AnalysisMetadata }): void {
+  set(url: string, hash: string, data: any): void {
     this.cache.set(url, {
       data,
       hash,
