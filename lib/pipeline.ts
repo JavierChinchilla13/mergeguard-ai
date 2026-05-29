@@ -1,29 +1,8 @@
 import { filterAndPrioritizeFiles, chunkFiles, ChunkedDiff, FileInsight } from "./chunking";
-import { runAIReview, ReviewResponse, getModelName } from "./gemini";
+import { runAIReview, ReviewResponse, getModelName, AnalysisMetadata } from "./gemini";
 import { getContextCache } from "./cache";
 
 import crypto from 'crypto';
-
-export interface AnalysisMetadata {
-  sessionId: string;
-  fingerprint: string;
-  model: string;
-  totalTokens: number;
-  chunkCount: number;
-  filesAnalyzed: number;
-  filesSkipped: number;
-  duration: number;
-  cacheStatus: 'hit' | 'miss' | 'invalidated';
-  cachedAt?: number;
-  latencies: {
-    github: number;
-    ai: number;
-    chunking: number;
-  };
-  insights: FileInsight[];
-  retryCount: number;
-  cacheInvalidationReason?: string;
-}
 
 /**
  * Executes a full AI review pipeline with deep observability instrumentation.
@@ -57,7 +36,7 @@ export async function executeAIReviewPipeline(
         codeSmells: [],
         architectureConcerns: [],
         suggestions: [],
-        positiveFeedback: ["PR contains only non-source files."]
+        positiveFindings: ["PR contains only non-source files."]
       },
       metadata: {
         sessionId,
@@ -93,7 +72,7 @@ export async function executeAIReviewPipeline(
     codeSmells: [],
     architectureConcerns: [],
     suggestions: [],
-    positiveFeedback: []
+    positiveFindings: []
   };
 
   const CHUNK_PROCESS_LIMIT = 2; // Increased for better coverage
@@ -102,8 +81,8 @@ export async function executeAIReviewPipeline(
   let aiTotalLatency = 0;
   let totalRetries = 0;
 
-  for (let i = 0; i < chunksToProcess.length; i++) {
-    const chunk = chunksToProcess[i];
+  // Process chunks in PARALLEL for significantly reduced latency
+  const chunkResults = await Promise.all(chunksToProcess.map(async (chunk, i) => {
     console.log(`[PIPELINE] [ID: ${sessionId}] Processing chunk ${i + 1}/${chunksToProcess.length}...`);
     
     // Attempt context caching
@@ -116,11 +95,17 @@ export async function executeAIReviewPipeline(
     }
 
     const aiCallStartTime = Date.now();
-    const chunkResult = await runAIReview(chunk.content, cacheName || undefined);
-    aiTotalLatency += (Date.now() - aiCallStartTime);
+    const result = await runAIReview(chunk.content, cacheName || undefined);
+    const latency = Date.now() - aiCallStartTime;
+    
+    return { result, latency };
+  }));
+
+  // Merge results
+  chunkResults.forEach(({ result: chunkResult, latency }, i) => {
+    aiTotalLatency += latency;
     totalRetries += chunkResult.retryCount;
     
-    // Merge results
     if (i === 0) {
       mergedReview.summary = chunkResult.summary;
       mergedReview.overallRating = chunkResult.overallRating;
@@ -138,8 +123,9 @@ export async function executeAIReviewPipeline(
     mergedReview.codeSmells.push(...chunkResult.codeSmells);
     mergedReview.architectureConcerns.push(...chunkResult.architectureConcerns);
     mergedReview.suggestions.push(...chunkResult.suggestions);
-    mergedReview.positiveFeedback.push(...chunkResult.positiveFeedback);
-  }
+    mergedReview.positiveFindings.push(...chunkResult.positiveFindings);
+  });
+
 
   const totalDuration = Date.now() - startTime;
   

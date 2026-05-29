@@ -11,11 +11,11 @@ export async function POST(req: NextRequest) {
   console.log(`[POST-REVIEW] [ID: ${requestId}] Request received`);
 
   try {
-    const { owner, repo, pullNumber, review } = await req.json();
+    const { owner, repo, pullNumber, review, metadata } = await req.json();
 
-    if (!owner || !repo || !pullNumber || !review) {
+    if (!owner || !repo || !pullNumber || !review || !metadata) {
       return NextResponse.json(
-        { error: "Missing required fields (owner, repo, pullNumber, or review)" },
+        { error: "Missing required fields (owner, repo, pullNumber, review, or metadata)" },
         { status: 400 }
       );
     }
@@ -29,8 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Format the Markdown comment
-    const modelName = getModelName();
-    const commentBody = formatGitHubComment(review, modelName);
+    const commentBody = formatGitHubComment(review, metadata);
 
     // 2. Post to GitHub REST API
     // Endpoint: POST /repos/{owner}/{repo}/issues/{issue_number}/comments

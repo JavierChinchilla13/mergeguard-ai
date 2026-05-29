@@ -3,6 +3,7 @@ import {
   SchemaType, 
   ResponseSchema 
 } from "@google/generative-ai";
+import { FileInsight } from "./chunking";
 
 /**
  * Interface for AI Review Findings
@@ -11,13 +12,15 @@ export interface ReviewFinding {
   title: string;
   severity: "critical" | "high" | "medium" | "low";
   confidence: "high" | "medium" | "low";
+  category: string;
   description: string;
-  impact: string; // Explains WHY this matters
+  impact: string; // Explains WHY this matters, exploitability, and consequences
   file: string;
   line: number;
   recommendation: string;
   codeSnippet: string;
   technicalReasoning: string; // The "senior engineer" deep dive
+  cwe?: string; // Optional CWE identifier for security findings
 }
 
 export interface ReviewResponse {
@@ -29,7 +32,28 @@ export interface ReviewResponse {
   codeSmells: ReviewFinding[];
   architectureConcerns: ReviewFinding[];
   suggestions: ReviewFinding[];
-  positiveFeedback: string[]; // Acknowledging good patterns
+  positiveFindings: string[]; // Concrete good engineering decisions (max 3)
+}
+
+export interface AnalysisMetadata {
+  sessionId: string;
+  fingerprint: string;
+  model: string;
+  totalTokens: number;
+  chunkCount: number;
+  filesAnalyzed: number;
+  filesSkipped: number;
+  duration: number;
+  cacheStatus: 'hit' | 'miss' | 'invalidated';
+  cachedAt?: number;
+  latencies: {
+    github: number;
+    ai: number;
+    chunking: number;
+  };
+  insights: FileInsight[];
+  retryCount: number;
+  cacheInvalidationReason?: string;
 }
 
 // Structured Output Schema
@@ -52,6 +76,7 @@ const reviewSchema: ResponseSchema = {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
           confidence: { type: SchemaType.STRING },
+          category: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
           impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
@@ -60,7 +85,7 @@ const reviewSchema: ResponseSchema = {
           codeSnippet: { type: SchemaType.STRING },
           technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
+        required: ["title", "severity", "confidence", "category", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
     security: {
@@ -71,15 +96,17 @@ const reviewSchema: ResponseSchema = {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
           confidence: { type: SchemaType.STRING },
+          category: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
           impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
           line: { type: SchemaType.NUMBER },
           recommendation: { type: SchemaType.STRING },
           codeSnippet: { type: SchemaType.STRING },
-          technicalReasoning: { type: SchemaType.STRING }
+          technicalReasoning: { type: SchemaType.STRING },
+          cwe: { type: SchemaType.STRING, description: "CWE identifier (e.g. CWE-79) if security finding" }
         },
-        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
+        required: ["title", "severity", "confidence", "category", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
     performance: {
@@ -90,6 +117,7 @@ const reviewSchema: ResponseSchema = {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
           confidence: { type: SchemaType.STRING },
+          category: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
           impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
@@ -98,7 +126,7 @@ const reviewSchema: ResponseSchema = {
           codeSnippet: { type: SchemaType.STRING },
           technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
+        required: ["title", "severity", "confidence", "category", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
     codeSmells: {
@@ -109,6 +137,7 @@ const reviewSchema: ResponseSchema = {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
           confidence: { type: SchemaType.STRING },
+          category: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
           impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
@@ -117,7 +146,7 @@ const reviewSchema: ResponseSchema = {
           codeSnippet: { type: SchemaType.STRING },
           technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
+        required: ["title", "severity", "confidence", "category", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
     architectureConcerns: {
@@ -128,6 +157,7 @@ const reviewSchema: ResponseSchema = {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
           confidence: { type: SchemaType.STRING },
+          category: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
           impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
@@ -136,7 +166,7 @@ const reviewSchema: ResponseSchema = {
           codeSnippet: { type: SchemaType.STRING },
           technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
+        required: ["title", "severity", "confidence", "category", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
     suggestions: {
@@ -147,6 +177,7 @@ const reviewSchema: ResponseSchema = {
           title: { type: SchemaType.STRING },
           severity: { type: SchemaType.STRING },
           confidence: { type: SchemaType.STRING },
+          category: { type: SchemaType.STRING },
           description: { type: SchemaType.STRING },
           impact: { type: SchemaType.STRING },
           file: { type: SchemaType.STRING },
@@ -155,19 +186,19 @@ const reviewSchema: ResponseSchema = {
           codeSnippet: { type: SchemaType.STRING },
           technicalReasoning: { type: SchemaType.STRING }
         },
-        required: ["title", "severity", "confidence", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
+        required: ["title", "severity", "confidence", "category", "description", "impact", "file", "line", "recommendation", "codeSnippet", "technicalReasoning"]
       }
     },
-    positiveFeedback: {
+    positiveFindings: {
       type: SchemaType.ARRAY,
       items: { type: SchemaType.STRING },
-      description: "Acknowledge good engineering practices or well-designed components found in the PR."
+      description: "Concrete good engineering decisions (e.g. 'Safe usage of prepared statements'). Max 3."
     }
   },
-  required: ["summary", "overallRating", "bugs", "security", "performance", "codeSmells", "architectureConcerns", "suggestions", "positiveFeedback"]
+  required: ["summary", "overallRating", "bugs", "security", "performance", "codeSmells", "architectureConcerns", "suggestions", "positiveFindings"]
 };
 
-const SYSTEM_PROMPT = `You are MergeGuard AI, a Lead Software Engineer and Security Architect. Conduct a deep-dive production code review.
+const SYSTEM_PROMPT = `You are MergeGuard Core, a Senior Lead Software Engineer and Security Architect. Conduct an enterprise-grade production code review.
 
 Technical Priorities:
 - SECURITY: OWASP Top 10, XSS, SQLi, CSRF, insecure auth, secrets exposure, unsafe database mutations.
@@ -176,21 +207,22 @@ Technical Priorities:
 - ARCHITECTURE: SOLID/DRY violations, server/client boundary mistakes (Next.js), leakage of internals, tight coupling.
 
 Rules:
-1. No generic feedback. Explain WHY (root cause), IMPACT (production risk), and FIX (actionable code).
+1. No generic feedback. Explain WHY (root cause), IMPACT (real-world production consequences and exploitability), and FIX (actionable code).
 2. Evidence-based: Always cite specific file/line and provide the offending codeSnippet.
 3. Framework-Aware: Tailor analysis to Next.js, React, Node.js, or detected stack best practices.
 4. Professional Tone: Be critical but objective. Use 'technicalReasoning' for deep dives.
-5. Acknowledge Quality: Use 'positiveFeedback' for excellent patterns.
-6. Suggestions: Always look for minor non-critical improvements (naming, readability, modern JS patterns) and put them in 'suggestions'.
-7. Confidence Scoring: Assign 'confidence' (high/medium/low) and 'severity' (critical/high/medium/low).
+5. Positive Findings: Identify up to 3 concrete GOOD engineering decisions in 'positiveFindings'. Never hallucinate; skip if none.
+6. CWE Mapping: For security findings, include the specific CWE ID (e.g. 'CWE-79' for XSS) in the 'cwe' field if confidence is high.
+7. Impact Section: For every finding, 'impact' must explicitly detail production consequences and risk levels.
+8. Confidence Scoring: Assign 'confidence' (high/medium/low) and 'severity' (critical/high/medium/low).
 
-Focus on what could break in a high-scale production environment.`;
+Focus on what could break in a high-scale production environment. Output must be strictly valid JSON.`;
 
 /**
  * Helper to get the model name from environment or fallback
  */
 export function getModelName(): string {
-  let modelName = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  const modelName = process.env.GEMINI_MODEL || "gemini-3.5-flash";
   return modelName.replace("models/", "");
 }
 

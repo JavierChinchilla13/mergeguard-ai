@@ -50,9 +50,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { CodeBlock } from "@/components/ui/code-block"
-import { ReviewResponse, ReviewFinding } from "@/lib/gemini"
-import { AnalysisMetadata } from "@/lib/pipeline"
+import { ReviewResponse, ReviewFinding, AnalysisMetadata } from "@/lib/gemini"
 import { cn } from "@/lib/utils"
+import { formatGitHubComment } from "@/lib/github-format"
 
 interface ResultsSectionProps {
   review: ReviewResponse
@@ -82,7 +82,7 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
   const [copied, setCopied] = useState(false)
 
   const handlePostReview = async () => {
-    if (!prDetails || isPosting || postUrl) return;
+    if (!prDetails || isPosting || postUrl || !metadata) return;
     setIsPosting(true);
     setPostError(null);
     try {
@@ -93,7 +93,8 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
           owner: prDetails.owner,
           repo: prDetails.repo,
           pullNumber: prDetails.pullNumber,
-          review: review
+          review: review,
+          metadata: metadata
         }),
       });
       const data = await response.json();
@@ -116,21 +117,8 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
   const totalIssues = categories.reduce((acc, cat) => acc + cat.count, 0)
 
   const getMarkdownPreview = () => {
-    if (!review) return "";
-    let md = `## 🛡️ MergeGuard AI Review\n\n`;
-    md += `**Overall Rating: ${review.overallRating.toUpperCase().replace('_', ' ')}**\n\n`;
-    md += `${review.summary}\n\n`;
-    
-    categories.forEach(cat => {
-      md += `### ${cat.label}\n`;
-      cat.issues.forEach((issue: any) => {
-        md += `- **${issue.title}** (${issue.file}:${issue.line})\n`;
-        md += `  *${issue.description}*\n`;
-      });
-      md += `\n`;
-    });
-    
-    return md;
+    if (!review || !metadata) return "";
+    return formatGitHubComment(review, metadata);
   }
 
   const copyToClipboard = () => {
@@ -157,7 +145,7 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `MergeGuard AI Review - PR #${prDetails?.pullNumber}`,
+          title: `MergeGuard Core Review - PR #${prDetails?.pullNumber}`,
           text: content,
         });
       } catch (err) {

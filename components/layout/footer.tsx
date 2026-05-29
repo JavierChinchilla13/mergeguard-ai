@@ -18,7 +18,7 @@ export function Footer() {
           </p>
         </div>
         <div className="mt-12 border-t border-border/40 pt-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} MergeGuard AI. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} MergeGuard Core. All rights reserved.</p>
         </div>
       </div>
     </footer>
