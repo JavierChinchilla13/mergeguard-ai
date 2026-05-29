@@ -30,6 +30,8 @@ import {
   Target,
   Gauge,
   Copy,
+  Download,
+  Share2,
   Terminal,
   FileWarning,
   Eye,
@@ -136,6 +138,37 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
+
+  const handleDownload = () => {
+    const content = getMarkdownPreview();
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mergeguard-review-pr-${prDetails?.pullNumber}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleShare = async () => {
+    const content = getMarkdownPreview();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `MergeGuard AI Review - PR #${prDetails?.pullNumber}`,
+          text: content,
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error("Error sharing:", err);
+        }
+      }
+    } else {
+      copyToClipboard();
+    }
+  };
 
   return (
     <section className="container py-12">
@@ -427,18 +460,36 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
                 </div>
               </div>
 
-              <div className="p-6 border-t border-border/40 flex items-center justify-between gap-4 bg-zinc-900/50">
-                <Button 
-                  variant="outline" 
-                  className={cn(
-                    "gap-2 font-bold transition-all",
-                    copied && "border-green-500 text-green-500"
-                  )}
-                  onClick={copyToClipboard}
-                >
-                  {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copied ? "Copied!" : "Copy Markdown"}
-                </Button>
+              <div className="p-6 border-t border-border/40 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/50">
+                <div className="flex flex-wrap gap-2">
+                  <Button 
+                    variant="outline" 
+                    className={cn(
+                      "gap-2 font-bold transition-all",
+                      copied && "border-green-500 text-green-500"
+                    )}
+                    onClick={copyToClipboard}
+                  >
+                    {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copied ? "Copied!" : "Copy Markdown"}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="gap-2 font-bold text-zinc-400 border-white/5 hover:border-white/20"
+                    onClick={handleDownload}
+                  >
+                    <Download className="h-4 w-4" />
+                    Download .md
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="gap-2 font-bold text-zinc-400 border-white/5 hover:border-white/20"
+                    onClick={handleShare}
+                  >
+                    <Share2 className="h-4 w-4" />
+                    Share
+                  </Button>
+                </div>
                 <div className="flex gap-3">
                   <Button variant="ghost" className="font-bold text-zinc-400" onClick={() => setShowPreview(false)}>Cancel</Button>
                   <Button 
