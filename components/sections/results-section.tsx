@@ -44,6 +44,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CodeBlock } from "@/components/ui/code-block"
 import { ReviewResponse, ReviewFinding, AnalysisMetadata } from "@/lib/gemini"
 import { PRFile } from "@/lib/github"
+import { FileInsight } from "@/lib/chunking"
 import { cn } from "@/lib/utils"
 import { formatGitHubComment } from "@/lib/github-format"
 
@@ -94,8 +95,9 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
       if (!response.ok) throw new Error(data.error || "Failed to post review");
       setPostUrl(data.commentUrl);
       setShowPreview(false);
-    } catch (err: any) {
-      setPostError(err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to post review";
+      setPostError(errorMessage);
       console.error("Post Error:", err);
     } finally {
       setIsPosting(false);
@@ -103,7 +105,7 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
   };
 
   const categories = Object.entries(CATEGORY_MAP).map(([key, config]) => {
-    const categoryIssues = (review as any)[key] || []
+    const categoryIssues = (review[key as keyof ReviewResponse] as ReviewFinding[]) || []
     return { key, ...config, count: categoryIssues.length, issues: categoryIssues }
   }).filter(c => c.count > 0)
 
@@ -206,7 +208,7 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
             icon={<Database />} 
             label="Cache" 
             value={metadata?.cacheStatus === 'hit' ? "HIT" : metadata?.cacheStatus === 'invalidated' ? "INVALID" : "MISS"} 
-            sub={metadata?.cacheStatus === 'hit' ? "Deterministic" : metadata?.cacheStatus === 'invalidated' ? "Hash Changed" : "Cold Start"} 
+            sub={metadata?.cacheMode === 'local-fallback' ? "Local Fallback" : "Gemini Context"} 
             highlight={metadata?.cacheStatus === 'hit'} 
           />
           <QuickStat icon={<Layers />} label="Segments" value={metadata?.chunkCount.toString() || "0"} sub="Sequential" />
@@ -216,6 +218,15 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
           <QuickStat icon={<Clock />} label="Total" value={`${((metadata?.duration || 0) / 1000).toFixed(1)}s`} sub="Pipeline" />
         </div>
       </div>
+
+      {metadata?.cacheMode === 'local-fallback' && (
+        <div className="mb-8 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20 flex items-center gap-3">
+          <Database className="h-4 w-4 text-blue-400" />
+          <p className="text-xs text-blue-400/90 font-medium">
+            <span className="font-bold">Execution Note:</span> Using Local Deterministic Cache (Gemini platform constraints active). SHA-256 fingerprinting remains active.
+          </p>
+        </div>
+      )}
 
       {metadata?.cacheStatus === 'invalidated' && (
         <div className="mb-8 p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20 flex items-center gap-3">
@@ -311,7 +322,7 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
                   <CardContent className="space-y-4">
                     <StatusItem label="GitHub REST API" active={true} icon={<Wifi />} />
                     <StatusItem label="Gemini Reasoning Core" active={true} icon={<Cpu />} />
-                    <StatusItem label="Deterministic Cache" active={true} icon={<Database />} />
+                    <StatusItem label={metadata.cacheMode === 'local-fallback' ? "Local Deterministic Cache" : "Gemini Context Cache"} active={true} icon={<Database />} />
                     <StatusItem label="Diff Segmentation" active={metadata.chunkCount > 0} icon={<Workflow />} />
                   </CardContent>
                 </Card>
@@ -363,9 +374,11 @@ export function ResultsSection({ review, files, prDetails, metadata }: ResultsSe
                         <ShieldCheck className="h-3 w-3 text-green-500" /> SHA-256 Verification
                       </h4>
                       <p className="text-[11px] text-zinc-400 leading-relaxed">
-                        {metadata.cacheStatus === 'hit' 
-                          ? "Deterministic hash match detected. Reused previous analysis session without re-executing AI reasoning." 
-                          : "New diff fingerprint detected. Analysis results have been persisted for subsequent identical commits."}
+                        {metadata.cacheMode === 'local-fallback' 
+                          ? "Using Local Deterministic Cache (Gemini quota unavailable). SHA-256 diff fingerprinting remains active to ensure consistency."
+                          : metadata.cacheStatus === 'hit' 
+                            ? "Deterministic hash match detected. Reused previous analysis session without re-executing AI reasoning." 
+                            : "New diff fingerprint detected. Analysis results have been persisted for subsequent identical commits."}
                       </p>
                     </div>
                   </CardContent>
@@ -505,7 +518,7 @@ function QuickStat({ icon, label, value, sub, highlight = false }: { icon: React
     )}>
       <div className="flex items-center gap-2 mb-1">
         <div className={cn("text-zinc-500", highlight && "text-primary opacity-100")}>
-          {React.cloneElement(icon as React.ReactElement<any>, { className: "h-3 w-3" })}
+          {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: "h-3 w-3" })}
         </div>
         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{label}</span>
       </div>
@@ -535,7 +548,7 @@ function StatusItem({ label, active, icon }: { label: string, active: boolean, i
     <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/5">
       <div className="flex items-center gap-3">
         <div className={cn("p-1.5 rounded bg-zinc-800 text-zinc-400", active && "text-primary bg-primary/10")}>
-          {React.cloneElement(icon as React.ReactElement<any>, { className: "h-3.5 w-3.5" })}
+          {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: "h-3.5 w-3.5" })}
         </div>
         <span className="text-[11px] font-bold text-zinc-300">{label}</span>
       </div>
@@ -589,7 +602,7 @@ function EmptyState() {
   );
 }
 
-function FileCard({ file, insight }: { file: any, insight?: any }) {
+function FileCard({ file, insight }: { file: PRFile, insight?: FileInsight }) {
   const [showPatch, setShowPatch] = useState(false)
   
   const getRiskBadge = () => {

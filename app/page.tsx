@@ -11,12 +11,13 @@ import { motion, AnimatePresence } from "framer-motion"
 import { AlertCircle, Bug, Database, Layers } from "lucide-react"
 import { StreamingAnalysis, AnalysisLog } from "@/components/sections/streaming-analysis"
 import { ReviewResponse, AnalysisMetadata } from "@/lib/gemini"
+import { PRFile } from "@/lib/github"
 
 interface PRAnalysisResponse {
   details: { owner: string; repo: string; pullNumber: number };
   cacheStatus: string;
   filesCount: number;
-  files: any[];
+  files: PRFile[];
   review: ReviewResponse;
   metadata: AnalysisMetadata;
 }
@@ -86,7 +87,7 @@ export default function LandingPage() {
       });
 
       const data: PRAnalysisResponse = await response.json();
-      if (!response.ok) throw new Error((data as any).error || "GitHub API Failure");
+      if (!response.ok) throw new Error((data as unknown as { error?: string }).error || "GitHub API Failure");
 
       addLog(`SUCCESS: Parsed ${data.filesCount} changed files from remote.`, 'success');
 
@@ -231,7 +232,7 @@ export default function LandingPage() {
         )}
 
         <AnimatePresence>
-          {showResults && (
+          {showResults && prData && (
             <motion.div
               id="results"
               initial={{ opacity: 0, y: 40 }}
@@ -239,10 +240,10 @@ export default function LandingPage() {
               transition={{ duration: 0.6, ease: "easeOut" }}
             >
               <ResultsSection 
-                review={prData?.review} 
-                files={prData?.files}
-                prDetails={prData?.details}
-                metadata={prData?.metadata}
+                review={prData.review} 
+                files={prData.files}
+                prDetails={prData.details}
+                metadata={prData.metadata}
               />
             </motion.div>
           )}

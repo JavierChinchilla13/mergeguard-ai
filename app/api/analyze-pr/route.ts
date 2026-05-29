@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       url, 
       allFiles, 
       githubLatency, 
-      cacheStatus as any,
+      cacheStatus,
       invalidationReason
     );
 

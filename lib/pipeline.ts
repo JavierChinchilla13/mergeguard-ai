@@ -1,6 +1,8 @@
 import { filterAndPrioritizeFiles, chunkFiles } from "./chunking";
 import { runAIReview, ReviewResponse, getModelName, AnalysisMetadata } from "./gemini";
 import { getContextCache } from "./cache";
+import { PRFile } from "./github";
+import { CacheStatus } from "./cache-service";
 
 import crypto from 'crypto';
 
@@ -9,9 +11,9 @@ import crypto from 'crypto';
  */
 export async function executeAIReviewPipeline(
   url: string,
-  allFiles: any[],
+  allFiles: PRFile[],
   githubLatency: number,
-  cacheStatus: 'hit' | 'miss' | 'invalidated' = 'miss',
+  cacheStatus: CacheStatus = 'miss',
   cacheInvalidationReason?: string
 ): Promise<{ review: ReviewResponse; metadata: AnalysisMetadata }> {
   const startTime = Date.now();
@@ -48,6 +50,7 @@ export async function executeAIReviewPipeline(
         filesSkipped: skippedCount,
         duration: Date.now() - startTime,
         cacheStatus,
+        cacheMode: 'gemini',
         cacheInvalidationReason,
         latencies: { github: githubLatency, ai: 0, chunking: Date.now() - chunkingStartTime },
         insights,
@@ -80,6 +83,7 @@ export async function executeAIReviewPipeline(
   
   let aiTotalLatency = 0;
   let totalRetries = 0;
+  let finalCacheMode: 'gemini' | 'local-fallback' = 'gemini';
 
   // Process chunks in PARALLEL for significantly reduced latency
   const chunkResults = await Promise.all(chunksToProcess.map(async (chunk, i) => {
@@ -89,9 +93,14 @@ export async function executeAIReviewPipeline(
     let cacheName = null;
     try {
       const cache = getContextCache();
-      cacheName = await cache.getOrCreateCache(`${url}-chunk-${i}`, chunk.content);
+      const cacheResult = await cache.getOrCreateCache(`${url}-chunk-${i}`, chunk.content);
+      cacheName = cacheResult.name;
+      if (cacheResult.mode === 'local-fallback') {
+        finalCacheMode = 'local-fallback';
+      }
     } catch {
       console.warn(`[PIPELINE] [ID: ${sessionId}] Cache initialization failed for chunk ${i}`);
+      finalCacheMode = 'local-fallback';
     }
 
     const aiCallStartTime = Date.now();
@@ -139,6 +148,7 @@ export async function executeAIReviewPipeline(
     filesSkipped: skippedCount,
     duration: totalDuration,
     cacheStatus,
+    cacheMode: finalCacheMode,
     cacheInvalidationReason,
     latencies: {
       github: githubLatency,

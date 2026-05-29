@@ -1,12 +1,13 @@
 import crypto from 'crypto';
+import { ReviewResponse, AnalysisMetadata } from './gemini';
 
-export type CacheStatus = 'HIT' | 'MISS' | 'INVALIDATED' | 'EXPIRED';
+export type CacheStatus = 'hit' | 'miss' | 'invalidated' | 'expired';
 
 interface CachedReview {
   data: {
-    review: any;
-    metadata: any;
-    [key: string]: any;
+    review: ReviewResponse;
+    metadata: AnalysisMetadata;
+    [key: string]: unknown;
   };
   timestamp: number;
   hash: string;
@@ -29,7 +30,7 @@ class ReviewCacheService {
   /**
    * Gets a cached review with explicit status reporting
    */
-  get(url: string, currentHash: string): { data: any | null, status: string, cachedAt?: number, invalidationReason?: string } {
+  get(url: string, currentHash: string): { data: { review: ReviewResponse, metadata: AnalysisMetadata } | null, status: CacheStatus, cachedAt?: number, invalidationReason?: string } {
     const cached = this.cache.get(url);
     
     if (!cached) {
@@ -51,7 +52,7 @@ class ReviewCacheService {
 
     return {
       data: {
-        ...cached.data,
+        review: cached.data.review,
         metadata: {
           ...cached.data.metadata,
           cacheStatus: 'hit',
@@ -66,7 +67,7 @@ class ReviewCacheService {
   /**
    * Sets a review in the cache
    */
-  set(url: string, hash: string, data: any): void {
+  set(url: string, hash: string, data: { review: ReviewResponse, metadata: AnalysisMetadata }): void {
     this.cache.set(url, {
       data,
       hash,

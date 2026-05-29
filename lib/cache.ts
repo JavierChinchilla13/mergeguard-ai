@@ -49,7 +49,7 @@ export class ContextCacheManager {
   /**
    * Attempts to create or retrieve a cache for the given content
    */
-  async getOrCreateCache(url: string, content: string): Promise<string | null> {
+  async getOrCreateCache(url: string, content: string): Promise<{ name: string | null; mode: 'gemini' | 'local-fallback' }> {
     try {
       const displayName = this.generateDisplayName(url);
       
@@ -61,7 +61,7 @@ export class ContextCacheManager {
 
       if (existingCache && existingCache.name) {
         console.log(`[CACHE HIT] Found existing cache: ${existingCache.name}`);
-        return existingCache.name;
+        return { name: existingCache.name, mode: 'gemini' };
       }
 
       console.log(`[CACHE MISS] Creating new cache for: ${url}`);
@@ -80,11 +80,32 @@ export class ContextCacheManager {
       });
 
       console.log(`[CACHE CREATED] Name: ${cache.name}, Expires: ${cache.expireTime}`);
-      return cache.name || null;
+      return { name: cache.name || null, mode: 'gemini' };
 
-    } catch (error) {
-      console.error(`[CACHE ERROR] Failed to manage context cache:`, error);
-      return null; // Fallback to non-cached request
+    } catch (error: any) {
+      const errorMsg = error?.message || "";
+      const isQuotaExceeded = errorMsg.includes("429") || 
+                             errorMsg.includes("quota") || 
+                             errorMsg.includes("TotalCachedContentStorageTokensPerModelFreeTier");
+      
+      const isTooSmall = errorMsg.includes("too small") || 
+                         errorMsg.includes("1024") || 
+                         (error?.status === 400 && errorMsg.includes("token_count"));
+
+      if (isQuotaExceeded) {
+        console.warn(`[CACHE FALLBACK] Gemini cache storage unavailable on current free tier`);
+        console.warn(`[CACHE FALLBACK] Using deterministic local SHA-256 cache instead`);
+        return { name: null, mode: 'local-fallback' };
+      }
+
+      if (isTooSmall) {
+        console.log(`[CACHE SKIP] Content size below Gemini's 1024 token minimum for context caching`);
+        console.log(`[CACHE SKIP] Proceeding with standard local SHA-256 cache verification`);
+        return { name: null, mode: 'local-fallback' };
+      }
+
+      console.error(`[CACHE ERROR] Unexpected failure in Gemini cache manager:`, error);
+      return { name: null, mode: 'local-fallback' };
     }
   }
 

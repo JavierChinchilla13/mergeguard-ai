@@ -44,7 +44,8 @@ export interface AnalysisMetadata {
   filesAnalyzed: number;
   filesSkipped: number;
   duration: number;
-  cacheStatus: 'hit' | 'miss' | 'invalidated';
+  cacheStatus: 'hit' | 'miss' | 'invalidated' | 'expired';
+  cacheMode: 'gemini' | 'local-fallback';
   cachedAt?: number;
   latencies: {
     github: number;
@@ -287,6 +288,8 @@ export async function runAIReview(
         let model;
         if (cacheName) {
           console.log(`[GEMINI] Using context cache: ${cacheName}`);
+          // Use 'as any' to bypass the strict CachedContent type which incorrectly requires 'contents'
+          // when we are just referencing an existing cache by name.
           model = genAI.getGenerativeModelFromCachedContent({ name: cacheName } as any);
         } else {
           model = genAI.getGenerativeModel({
@@ -315,7 +318,12 @@ export async function runAIReview(
       } catch (error: unknown) {
         lastError = error;
         const errorMsg = error instanceof Error ? error.message.toLowerCase() : "";
-        const status = (error as any).status;
+        
+        // Safe access to status if it exists
+        const status = (error && typeof error === 'object' && 'status' in error) 
+          ? (error as { status: number }).status 
+          : undefined;
+
         const isRateLimit = errorMsg.includes("429") || status === 429 || errorMsg.includes("quota");
         const isNotFound = errorMsg.includes("404") || status === 404 || errorMsg.includes("not found");
 
