@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Terminal, Info, Shield, Bug, Zap, CheckCircle2, ChevronRight, Clock, Activity, AlertCircle } from "lucide-react"
+import { Terminal, CheckCircle2, Clock, Activity } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 

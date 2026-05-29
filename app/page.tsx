@@ -10,6 +10,16 @@ import { Button } from "@/components/ui/button"
 import { motion, AnimatePresence } from "framer-motion"
 import { AlertCircle, Bug, Database, Layers } from "lucide-react"
 import { StreamingAnalysis, AnalysisLog } from "@/components/sections/streaming-analysis"
+import { ReviewResponse, AnalysisMetadata } from "@/lib/gemini"
+
+interface PRAnalysisResponse {
+  details: { owner: string; repo: string; pullNumber: number };
+  cacheStatus: string;
+  filesCount: number;
+  files: any[];
+  review: ReviewResponse;
+  metadata: AnalysisMetadata;
+}
 
 const ANALYSIS_STAGES = [
   "Fetching PR metadata",
@@ -26,7 +36,7 @@ export default function LandingPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [prData, setPrData] = useState<any>(null)
+  const [prData, setPrData] = useState<PRAnalysisResponse | null>(null)
   
   // Streaming State
   const [analysisLogs, setAnalysisLogs] = useState<AnalysisLog[]>([])
@@ -75,8 +85,8 @@ export default function LandingPage() {
         body: JSON.stringify({ url }),
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "GitHub API Failure");
+      const data: PRAnalysisResponse = await response.json();
+      if (!response.ok) throw new Error((data as any).error || "GitHub API Failure");
 
       addLog(`SUCCESS: Parsed ${data.filesCount} changed files from remote.`, 'success');
 
@@ -86,11 +96,11 @@ export default function LandingPage() {
       addLog("Executing risk-aware file prioritization...", 'info');
       
       const insights = data.metadata?.insights || [];
-      const prioritized = insights.filter((i: any) => i.decision === 'prioritized');
-      const skipped = insights.filter((i: any) => i.decision === 'skipped');
+      const prioritized = insights.filter(i => i.decision === 'prioritized');
+      const skipped = insights.filter(i => i.decision === 'skipped');
       
       if (skipped.length > 0) addLog(`Filtered ${skipped.length} low-signal assets (lockfiles/generated).`, 'syst');
-      prioritized.forEach((p: any) => addLog(`PRIO: ${p.filename} (${p.reason})`, 'prio'));
+      prioritized.forEach(p => addLog(`PRIO: ${p.filename} (${p.reason})`, 'prio'));
 
       if (data.cacheStatus === 'hit') {
         addLog("CACHE HIT: Deterministic SHA-256 match. Serving persisted report.", 'cache');
@@ -141,11 +151,12 @@ export default function LandingPage() {
         }, 100);
       }, 500);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (timerRef.current) clearInterval(timerRef.current);
-      addLog(`[CRITICAL] ${err.message}`, 'error');
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+      addLog(`[CRITICAL] ${errorMessage}`, 'error');
       setIsAnalyzing(false);
-      setError(err.message);
+      setError(errorMessage);
       analysisLock.current = false;
       console.error("Analysis Error:", err);
     }

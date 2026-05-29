@@ -10,7 +10,6 @@ import {
   Wind, 
   Lightbulb, 
   ChevronDown, 
-  ChevronRight,
   AlertTriangle,
   FileCode,
   Activity,
@@ -23,40 +22,34 @@ import {
   Clock,
   Cpu,
   Layers,
-  FileText,
-  BarChart3,
-  Search,
-  ArrowUpRight,
   Target,
   Gauge,
   Copy,
   Download,
   Share2,
   Terminal,
-  FileWarning,
   Eye,
   Info,
   ShieldCheck,
   ZapOff,
   AlertCircle,
-  Server,
-  Lock,
-  Wifi,
-  Workflow,
   Fingerprint,
-  HardDrive
+  HardDrive,
+  Wifi,
+  Workflow
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CodeBlock } from "@/components/ui/code-block"
 import { ReviewResponse, ReviewFinding, AnalysisMetadata } from "@/lib/gemini"
+import { PRFile } from "@/lib/github"
 import { cn } from "@/lib/utils"
 import { formatGitHubComment } from "@/lib/github-format"
 
 interface ResultsSectionProps {
   review: ReviewResponse
-  files?: any[]
+  files?: PRFile[]
   prDetails?: { owner: string; repo: string; pullNumber: number }
   metadata?: AnalysisMetadata
 }

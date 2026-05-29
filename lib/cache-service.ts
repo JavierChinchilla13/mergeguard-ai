@@ -3,7 +3,11 @@ import crypto from 'crypto';
 export type CacheStatus = 'HIT' | 'MISS' | 'INVALIDATED' | 'EXPIRED';
 
 interface CachedReview {
-  data: any;
+  data: {
+    review: any;
+    metadata: any;
+    [key: string]: any;
+  };
   timestamp: number;
   hash: string;
 }

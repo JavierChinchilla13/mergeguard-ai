@@ -45,7 +45,7 @@ export function parseGitHubPRUrl(url: string): GitHubPRDetails | null {
     if (isNaN(pullNumber)) return null;
 
     return { owner, repo, pullNumber };
-  } catch (e) {
+  } catch {
     return null;
   }
 }

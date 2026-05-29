@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { formatGitHubComment } from "@/lib/github-format";
-import { getModelName } from "@/lib/gemini";
 
 /**
  * API Route: /api/post-review
@@ -67,10 +66,11 @@ export async function POST(req: NextRequest) {
       commentUrl: data.html_url,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while posting the comment.";
     console.error(`[POST-REVIEW ERROR] [ID: ${requestId}]:`, error);
     return NextResponse.json(
-      { error: error.message || "An unexpected error occurred while posting the comment." },
+      { error: errorMessage },
       { status: 500 }
     );
   }

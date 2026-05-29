@@ -1,3 +1,5 @@
+import { PRFile } from "./github";
+
 /**
  * Utility for intelligent PR diff chunking and prioritization with observability insights.
  */
@@ -58,7 +60,7 @@ const PRIORITY_PATTERNS = [
 /**
  * Filters and prioritizes files from a PR, generating technical insights for observability.
  */
-export function filterAndPrioritizeFiles(files: any[]): { filtered: any[], insights: FileInsight[] } {
+export function filterAndPrioritizeFiles(files: PRFile[]): { filtered: PRFile[], insights: FileInsight[] } {
   const insights: FileInsight[] = [];
   
   // 1. Filter out ignored files
@@ -118,7 +120,7 @@ export function estimateTokens(text: string): number {
  * Chunks PR files and truncates large patches to save tokens
  */
 export function chunkFiles(
-  files: any[], 
+  files: PRFile[], 
   insights: FileInsight[],
   maxTokensPerChunk: number = 30000, 
   maxCharsPerFile: number = 12000
@@ -128,7 +130,7 @@ export function chunkFiles(
   let currentChunkContent = "";
   let currentTokenCount = 0;
 
-  files.forEach((file, index) => {
+  files.forEach((file) => {
     if (!file.patch) return;
 
     let patch = file.patch;

@@ -198,25 +198,26 @@ const reviewSchema: ResponseSchema = {
   required: ["summary", "overallRating", "bugs", "security", "performance", "codeSmells", "architectureConcerns", "suggestions", "positiveFindings"]
 };
 
-const SYSTEM_PROMPT = `You are MergeGuard Core, a Senior Lead Software Engineer and Security Architect. Conduct an enterprise-grade production code review.
+const SYSTEM_PROMPT = `You are MergeGuard Core, a Senior Staff Software Engineer and Security Architect. Conduct a comprehensive, high-fidelity production code review.
 
-Technical Priorities:
-- SECURITY: OWASP Top 10, XSS, SQLi, CSRF, insecure auth, secrets exposure, unsafe database mutations.
-- LOGIC & CONCURRENCY: Race conditions, deadlocks, async/await gaps, edge cases, state corruption.
-- PERFORMANCE: N+1 queries, memory leaks, unmemoized React components, expensive O(n) ops, blocking IO.
-- ARCHITECTURE: SOLID/DRY violations, server/client boundary mistakes (Next.js), leakage of internals, tight coupling.
+Scope of Analysis:
+- SECURITY: OWASP Top 10, XSS, SQLi, CSRF, insecure auth, secrets exposure, and unsafe database mutations.
+- CORRECTNESS: Race conditions, deadlocks, async/await gaps, edge cases, and state corruption.
+- ARCHITECTURE: SOLID/DRY violations, server/client boundary mistakes (Next.js), leakage of internals, and scalability bottlenecks.
+- PERFORMANCE: N+1 queries, memory leaks, unmemoized React components, and expensive O(n) operations.
+- MAINTAINABILITY: Developer ergonomics, API design flaws, and complex logic that hinders long-term evolution.
 
 Rules:
-1. No generic feedback. Explain WHY (root cause), IMPACT (real-world production consequences and exploitability), and FIX (actionable code).
-2. Evidence-based: Always cite specific file/line and provide the offending codeSnippet.
-3. Framework-Aware: Tailor analysis to Next.js, React, Node.js, or detected stack best practices.
-4. Professional Tone: Be critical but objective. Use 'technicalReasoning' for deep dives.
-5. Positive Findings: Identify up to 3 concrete GOOD engineering decisions in 'positiveFindings'. Never hallucinate; skip if none.
-6. CWE Mapping: For security findings, include the specific CWE ID (e.g. 'CWE-79' for XSS) in the 'cwe' field if confidence is high.
-7. Impact Section: For every finding, 'impact' must explicitly detail production consequences and risk levels.
-8. Confidence Scoring: Assign 'confidence' (high/medium/low) and 'severity' (critical/high/medium/low).
+1. Balanced Intensity: Prioritize high-impact production risks, but do not ignore architectural or correctness issues. Surface medium-confidence concerns if they are technically justified and actionable.
+2. No Stylistic Nitpicks: Avoid weak feedback on naming or minor stylistic preferences. Focus on what affects stability, security, or maintenance at scale.
+3. Impact-Driven: For every finding, 'impact' must detail real-world consequences (production breaks, exploitability, or technical debt accumulation).
+4. Evidence-Based: Always cite the specific file/line and provide the offending codeSnippet.
+5. Technical Reasoning: Use 'technicalReasoning' for staff-level deep dives into WHY a pattern is problematic.
+6. Framework-Aware: Tailor analysis to Next.js 15+, React, and modern TypeScript best practices.
+7. Positive Findings: Identify up to 3 concrete GOOD engineering decisions. Never hallucinate.
+8. CWE Mapping: Include specific CWE IDs for security findings where confidence is high.
 
-Focus on what could break in a high-scale production environment. Output must be strictly valid JSON.`;
+Your review should feel like a Staff Engineer combined with a Security Auditor: critical, objective, and deeply technical. Output must be strictly valid JSON.`;
 
 /**
  * Helper to get the model name from environment or fallback
@@ -273,7 +274,7 @@ export async function runAIReview(
     "gemini-3.1-flash-lite"
   ].filter((v, i, a) => a.indexOf(v) === i);
 
-  let lastError: any;
+  let lastError: unknown;
   let totalRetries = 0;
   
   for (let modelId of modelIdsToTry) {
@@ -311,11 +312,12 @@ export async function runAIReview(
         
         return { ...parsedResponse, retryCount: totalRetries };
 
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
-        const errorMsg = error.message?.toLowerCase() || "";
-        const isRateLimit = errorMsg.includes("429") || error.status === 429 || errorMsg.includes("quota");
-        const isNotFound = errorMsg.includes("404") || error.status === 404 || errorMsg.includes("not found");
+        const errorMsg = error instanceof Error ? error.message.toLowerCase() : "";
+        const status = (error as any).status;
+        const isRateLimit = errorMsg.includes("429") || status === 429 || errorMsg.includes("quota");
+        const isNotFound = errorMsg.includes("404") || status === 404 || errorMsg.includes("not found");
 
         if (isNotFound) {
           console.warn(`[GEMINI] Model ID ${modelId} not found. Trying next fallback...`);
@@ -330,11 +332,11 @@ export async function runAIReview(
           continue;
         }
         
-        console.error(`[GEMINI] Error with ${modelId}:`, error.message);
+        console.error(`[GEMINI] Error with ${modelId}:`, error instanceof Error ? error.message : "Unknown error");
         break; 
       }
     }
   }
   
-  throw lastError || new Error("AI review failed. No compatible Gemini models found for this API key.");
+  throw lastError instanceof Error ? lastError : new Error("AI review failed. No compatible Gemini models found for this API key.");
 }

@@ -104,10 +104,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(finalResponse);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const requestId = Math.random().toString(36).substring(7); // In case it's not available in catch
     console.error(`[API ERROR] [ID: ${requestId}]:`, error);
     
-    const errorMessage = error.message || "An unexpected error occurred while processing the request.";
+    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred while processing the request.";
     let status = 500;
     
     if (errorMessage.includes("quota exceeded") || errorMessage.includes("429")) {

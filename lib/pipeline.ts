@@ -1,4 +1,4 @@
-import { filterAndPrioritizeFiles, chunkFiles, ChunkedDiff, FileInsight } from "./chunking";
+import { filterAndPrioritizeFiles, chunkFiles } from "./chunking";
 import { runAIReview, ReviewResponse, getModelName, AnalysisMetadata } from "./gemini";
 import { getContextCache } from "./cache";
 
@@ -90,7 +90,7 @@ export async function executeAIReviewPipeline(
     try {
       const cache = getContextCache();
       cacheName = await cache.getOrCreateCache(`${url}-chunk-${i}`, chunk.content);
-    } catch (e) {
+    } catch {
       console.warn(`[PIPELINE] [ID: ${sessionId}] Cache initialization failed for chunk ${i}`);
     }
 

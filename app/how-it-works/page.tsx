@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react"
 import { Navbar } from "@/components/layout/navbar"
 import { Footer } from "@/components/layout/footer"
-import { motion } from "framer-motion"
 import { 
   Bug, 
   ShieldAlert, 
@@ -11,22 +10,18 @@ import {
   Layers, 
   CheckCircle2, 
   XCircle, 
-  Terminal, 
   Database, 
   GitPullRequest, 
   Search, 
-  Activity,
   ChevronRight,
   Info,
   Wind,
-  Cpu,
   RefreshCw,
   FileCode,
   ShieldCheck,
   Fingerprint
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
 export default function HowItWorks() {
@@ -198,7 +193,7 @@ export default function HowItWorks() {
                   <h4 className="font-bold text-white">Why we cache diffs, not just URLs</h4>
                   <p className="text-sm text-zinc-400 leading-relaxed">
                     MergeGuard uses a unique SHA-256 hash of the entire file patch set. This ensures that if you push a new commit 
-                    to the same PR, our system instantly detects the change and re-analyzes, preventing stale "outdated" reviews.
+                    to the same PR, our system instantly detects the change and re-analyzes, preventing stale &quot;outdated&quot; reviews.
                   </p>
                 </div>
               </div>

@@ -1,9 +1,14 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 import path from "path";
 
 // Load .env.local
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+
+interface GeminiModel {
+  name: string;
+  displayName: string;
+  supportedGenerationMethods: string[];
+}
 
 async function listModels() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -26,7 +31,7 @@ async function listModels() {
     }
 
     console.log("\n✅ Available Models:");
-    console.table(data.models.map((m: any) => ({
+    console.table((data.models as GeminiModel[]).map(m => ({
       name: m.name,
       displayName: m.displayName,
       supportedMethods: m.supportedGenerationMethods.join(", ")
