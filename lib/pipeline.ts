@@ -78,8 +78,9 @@ export async function executeAIReviewPipeline(
     positiveFindings: []
   };
 
-  const CHUNK_PROCESS_LIMIT = 2; // Increased for better coverage
-  const chunksToProcess = chunks.slice(0, CHUNK_PROCESS_LIMIT);
+  // We now process ALL chunks in parallel for maximum coverage and minimum latency
+  // No silent discarding of data.
+  const chunksToProcess = chunks; 
   
   let aiTotalLatency = 0;
   let totalRetries = 0;
@@ -89,11 +90,12 @@ export async function executeAIReviewPipeline(
   const chunkResults = await Promise.all(chunksToProcess.map(async (chunk, i) => {
     console.log(`[PIPELINE] [ID: ${sessionId}] Processing chunk ${i + 1}/${chunksToProcess.length}...`);
     
-    // Attempt context caching
+    // Attempt context caching with content-aware fingerprints
     let cacheName = null;
     try {
       const cache = getContextCache();
-      const cacheResult = await cache.getOrCreateCache(`${url}-chunk-${i}`, chunk.content);
+      // FIX: Passing chunk content ensures cache is invalidated on ANY content change
+      const cacheResult = await cache.getOrCreateCache(url, chunk.content);
       cacheName = cacheResult.name;
       if (cacheResult.mode === 'local-fallback') {
         finalCacheMode = 'local-fallback';
@@ -110,7 +112,17 @@ export async function executeAIReviewPipeline(
     return { result, latency };
   }));
 
-  // Merge results
+  // Merge results with high-fidelity deduplication
+  const deduplicate = <T extends { title: string; file: string; line: number }>(findings: T[]): T[] => {
+    const seen = new Set<string>();
+    return findings.filter(f => {
+      const key = `${f.title}|${f.file}|${f.line}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
   chunkResults.forEach(({ result: chunkResult, latency }, i) => {
     aiTotalLatency += latency;
     totalRetries += chunkResult.retryCount;
@@ -119,13 +131,17 @@ export async function executeAIReviewPipeline(
       mergedReview.summary = chunkResult.summary;
       mergedReview.overallRating = chunkResult.overallRating;
     } else {
-      mergedReview.summary += `\n\n[Additional Files Audit]: ${chunkResult.summary}`;
+      // Append secondary summaries
+      mergedReview.summary += `\n\n[Secondary Segment Audit]: ${chunkResult.summary}`;
+      
+      // Escalate rating if any chunk finds critical issues
       const ratingsRank = { "critical_issues": 3, "needs_work": 2, "good": 1, "excellent": 0 };
       if (ratingsRank[chunkResult.overallRating] > ratingsRank[mergedReview.overallRating]) {
         mergedReview.overallRating = chunkResult.overallRating;
       }
     }
     
+    // Collect all findings
     mergedReview.bugs.push(...chunkResult.bugs);
     mergedReview.security.push(...chunkResult.security);
     mergedReview.performance.push(...chunkResult.performance);
@@ -134,6 +150,15 @@ export async function executeAIReviewPipeline(
     mergedReview.suggestions.push(...chunkResult.suggestions);
     mergedReview.positiveFindings.push(...chunkResult.positiveFindings);
   });
+
+  // Final deduplication to ensure professional, non-redundant reports
+  mergedReview.bugs = deduplicate(mergedReview.bugs);
+  mergedReview.security = deduplicate(mergedReview.security);
+  mergedReview.performance = deduplicate(mergedReview.performance);
+  mergedReview.codeSmells = deduplicate(mergedReview.codeSmells);
+  mergedReview.architectureConcerns = deduplicate(mergedReview.architectureConcerns);
+  mergedReview.suggestions = deduplicate(mergedReview.suggestions);
+  mergedReview.positiveFindings = Array.from(new Set(mergedReview.positiveFindings));
 
 
   const totalDuration = Date.now() - startTime;

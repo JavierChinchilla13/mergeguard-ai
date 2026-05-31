@@ -18,7 +18,7 @@ export function PRInput({ onAnalyze, isLoading }: PRInputProps) {
   const [url, setUrl] = useState("")
   const [error, setError] = useState<string | null>(null)
 
-  const githubPrRegex = /^https:\/\/github\.com\/[\w-]+\/[\w-]+\/pull\/\d+/
+  const githubPrRegex = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+/
   const isValid = githubPrRegex.test(url)
 
   const validateUrl = (value: string) => {

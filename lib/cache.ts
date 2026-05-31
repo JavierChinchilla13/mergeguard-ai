@@ -1,5 +1,6 @@
 import { GoogleAICacheManager } from "@google/generative-ai/server";
 import { getModelName } from "./gemini";
+import crypto from "crypto";
 
 /**
  * Utility for verifiable Gemini Context Caching
@@ -31,19 +32,21 @@ export class ContextCacheManager {
    */
   private getCacheModelName(): string {
     const baseModel = getModelName();
-    // Cache manager requires 'models/' prefix
-    // For 2.0-flash, we use a specific stable version for caching if needed
-    // However, the base model name usually works if prepended with models/
     return baseModel.startsWith("models/") ? baseModel : `models/${baseModel}`;
   }
 
   /**
-   * Generates a cache key based on the PR URL and content hash
+   * Generates a deterministic cache key based on the PR URL and content hash
    */
-  private generateDisplayName(url: string): string {
-    // Display names must be unique and descriptive
-    const cleanUrl = url.replace(/[^a-zA-Z0-9]/g, '-').slice(-40);
-    return `mergeguard-cache-${cleanUrl}`;
+  private generateDisplayName(url: string, content: string): string {
+    // Generate a unique hash for the chunk content
+    const contentHash = crypto.createHash('sha256').update(content).digest('hex').slice(0, 12);
+    
+    // Clean URL for descriptive display (last 20 chars)
+    const cleanUrl = url.replace(/[^a-zA-Z0-9]/g, '-').slice(-20);
+    
+    // Format: mg-{url-segment}-{short-hash}
+    return `mg-${cleanUrl}-${contentHash}`;
   }
 
   /**
@@ -51,20 +54,20 @@ export class ContextCacheManager {
    */
   async getOrCreateCache(url: string, content: string): Promise<{ name: string | null; mode: 'gemini' | 'local-fallback' }> {
     try {
-      const displayName = this.generateDisplayName(url);
+      const displayName = this.generateDisplayName(url, content);
       
-      console.log(`[CACHE] Checking for existing cache: ${displayName}`);
+      console.log(`[CACHE] Looking for content-aware cache: ${displayName}`);
       
       // List existing caches and look for a match
       const caches = await this.cacheManager.list();
       const existingCache = caches.cachedContents?.find(c => c.displayName === displayName);
 
       if (existingCache && existingCache.name) {
-        console.log(`[CACHE HIT] Found existing cache: ${existingCache.name}`);
+        console.log(`[CACHE HIT] Valid context cache found: ${existingCache.name}`);
         return { name: existingCache.name, mode: 'gemini' };
       }
 
-      console.log(`[CACHE MISS] Creating new cache for: ${url}`);
+      console.log(`[CACHE MISS] No valid cache for this content version. Creating...`);
       
       // Create new cache with 1 hour TTL
       const cache = await this.cacheManager.create({
